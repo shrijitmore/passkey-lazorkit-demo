@@ -8,19 +8,50 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 
+/**
+ * WalletPanel Component
+ * 
+ * A comprehensive wallet UI component that demonstrates:
+ * - Passkey-based wallet connection
+ * - Balance fetching and display
+ * - Gasless transaction sending
+ * - Session management
+ * 
+ * Reference: https://docs.lazorkit.com/react-sdk/use-wallet
+ */
+
 const RPC_URL = 'https://api.devnet.solana.com';
 const EXPLORER_URL = 'https://explorer.solana.com';
 const FAUCET_URL = 'https://faucet.solana.com';
 
 export default function WalletPanel() {
+  /**
+   * useWallet Hook
+   * 
+   * Provides wallet state and methods from LazorKit SDK.
+   * All methods and properties are documented at: https://docs.lazorkit.com/react-sdk/use-wallet
+   * 
+   * Available properties:
+   * - smartWalletPubkey: PublicKey | null - The smart wallet address (PDA)
+   * - isConnected: boolean - Whether wallet is currently connected
+   * - isConnecting: boolean - Whether connection is in progress
+   * - error: Error | null - Any connection or transaction errors
+   * 
+   * Available methods:
+   * - connect(): Promise<WalletInfo> - Connect wallet (creates/authenticates passkey)
+   * - disconnect(): Promise<void> - Disconnect and clear session
+   * - signAndSendTransaction(): Promise<string> - Send gasless transaction
+   * - signMessage(): Promise<{signature, signedPayload}> - Sign messages
+   */
   const {
-    smartWalletPubkey,
-    isConnected,
-    isConnecting,
-    connect,
-    disconnect,
-    error,
-    signAndSendTransaction,
+    smartWalletPubkey,      // PublicKey | null - Smart wallet address (PDA)
+    isConnected,             // boolean - Connection status
+    isConnecting,            // boolean - Currently connecting
+    connect,                 // Function - Initiate wallet connection
+    disconnect,              // Function - Disconnect wallet
+    error,                   // Error | null - Connection/transaction errors
+    signAndSendTransaction, // Function - Send gasless transactions
+    signMessage,             // Function - Sign messages with passkey
   } = useWallet();
 
   const [balance, setBalance] = useState<number | null>(null);
@@ -29,28 +60,60 @@ export default function WalletPanel() {
   const [txSignature, setTxSignature] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  
+  // Message signing state
+  const [isSigningMessage, setIsSigningMessage] = useState(false);
+  const [messageSignature, setMessageSignature] = useState<string | null>(null);
+  const [messageError, setMessageError] = useState<string | null>(null);
 
+  // Solana Connection instance for querying blockchain data
+  // Used to fetch balance, confirm transactions, etc.
   const connection = new Connection(RPC_URL, 'confirmed');
 
-  // Fetch balance when wallet connects
+  /**
+   * Effect: Fetch balance when wallet connects
+   * 
+   * When wallet connects:
+   * 1. Immediately fetch the balance
+   * 2. Set up polling to refresh balance every 5 seconds
+   * 3. Clean up polling when wallet disconnects
+   * 
+   * When wallet disconnects:
+   * - Clear balance, transaction signature, and errors
+   */
   useEffect(() => {
     if (isConnected && smartWalletPubkey) {
       fetchBalance();
-      // Poll balance every 5 seconds
+      // Poll balance every 5 seconds to keep it updated
       const interval = setInterval(fetchBalance, 5000);
       return () => clearInterval(interval);
     } else {
+      // Clear all wallet-related state when disconnected
       setBalance(null);
       setTxSignature(null);
       setTxError(null);
     }
   }, [isConnected, smartWalletPubkey]);
 
+  /**
+   * fetchBalance
+   * 
+   * Fetches the SOL balance of the connected smart wallet from the Solana blockchain.
+   * 
+   * How it works:
+   * 1. Uses Solana Connection to query the blockchain
+   * 2. getBalance() returns balance in lamports (smallest unit of SOL)
+   * 3. Converts lamports to SOL by dividing by LAMPORTS_PER_SOL (1e9)
+   * 
+   * Note: This is separate from LazorKit - we're directly querying Solana RPC
+   */
   const fetchBalance = async () => {
     if (!smartWalletPubkey) return;
     setIsLoadingBalance(true);
     try {
+      // Query Solana blockchain for wallet balance
       const balance = await connection.getBalance(smartWalletPubkey);
+      // Convert lamports to SOL (1 SOL = 1,000,000,000 lamports)
       setBalance(balance / LAMPORTS_PER_SOL);
     } catch (err) {
       console.error('Failed to fetch balance:', err);
@@ -59,17 +122,50 @@ export default function WalletPanel() {
     }
   };
 
+  /**
+   * copyAddress
+   * 
+   * Copies the wallet address to clipboard for easy sharing/funding.
+   * Uses the browser's Clipboard API.
+   */
   const copyAddress = async () => {
     if (!smartWalletPubkey) return;
     try {
       await navigator.clipboard.writeText(smartWalletPubkey.toString());
       setCopied(true);
+      // Reset "Copied!" message after 2 seconds
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
   };
 
+  /**
+   * handleSendTransaction
+   * 
+   * Sends a gasless transaction using LazorKit's signAndSendTransaction method.
+   * 
+   * How it works (as per https://docs.lazorkit.com/react-sdk/use-wallet#signandsendtransaction):
+   * 
+   * 1. Create Transaction Instruction:
+   *    - Use Solana's SystemProgram to create a transfer instruction
+   *    - This defines WHAT the transaction does (transfer SOL)
+   * 
+   * 2. Call signAndSendTransaction:
+   *    - LazorKit automatically signs with user's passkey (biometric prompt)
+   *    - LazorKit submits via Paymaster (gasless - no SOL needed for fees)
+   *    - Returns transaction signature
+   * 
+   * 3. Transaction Flow:
+   *    User clicks → Biometric prompt → Passkey signs → Paymaster pays fees → Transaction on-chain
+   * 
+   * Key Benefits:
+   * - No seed phrases: Passkey handles signing
+   * - Gasless: Paymaster pays fees
+   * - Secure: Private key never leaves device (WebAuthn)
+   * 
+   * Reference: https://docs.lazorkit.com/react-sdk/use-wallet#signandsendtransaction
+   */
   const handleSendTransaction = async () => {
     if (!smartWalletPubkey || !signAndSendTransaction || balance === null || balance === 0) {
       return;
@@ -80,21 +176,55 @@ export default function WalletPanel() {
     setTxSignature(null);
 
     try {
-      // Create a simple self-transfer instruction (0.01 SOL)
+      /**
+       * Step 1: Create Transaction Instruction
+       * 
+       * SystemProgram.transfer creates a Solana instruction that transfers SOL.
+       * We're doing a self-transfer (to same address) for demo purposes.
+       * 
+       * Parameters:
+       * - fromPubkey: Source wallet (our smart wallet)
+       * - toPubkey: Destination wallet (same wallet for demo)
+       * - lamports: Amount in lamports (0.01 SOL = 10,000,000 lamports)
+       */
       const instruction = SystemProgram.transfer({
         fromPubkey: smartWalletPubkey,
         toPubkey: smartWalletPubkey, // Self-transfer for demo
         lamports: 0.01 * LAMPORTS_PER_SOL,
       });
 
-      // Sign and send transaction using LazorKit's signAndSendTransaction
-      // This method handles signing with passkey and submission via Paymaster
+      /**
+       * Step 2: Sign and Send Transaction
+       * 
+       * signAndSendTransaction is LazorKit's core method for executing on-chain actions.
+       * 
+       * What happens internally:
+       * 1. LazorKit prompts user for biometric authentication (Face ID/Touch ID)
+       * 2. Passkey signs the transaction in device's Secure Enclave
+       * 3. Transaction is sent to Paymaster service
+       * 4. Paymaster pays the transaction fees (gasless!)
+       * 5. Transaction is submitted to Solana network
+       * 6. Returns transaction signature
+       * 
+       * API Reference: https://docs.lazorkit.com/react-sdk/use-wallet#signandsendtransaction
+       * 
+       * Optional transactionOptions:
+       * - feeToken: 'USDC' - Pay fees in USDC instead of SOL
+       * - computeUnitLimit: 500_000 - Max compute units
+       * - clusterSimulation: 'devnet' - Network for simulation
+       */
       const signature = await signAndSendTransaction({
         instructions: [instruction],
+        // Optional: Add transaction options here
+        // transactionOptions: {
+        //   feeToken: 'USDC',
+        //   computeUnitLimit: 500_000,
+        //   clusterSimulation: 'devnet',
+        // },
       });
       
       setTxSignature(signature);
-      // Refresh balance after transaction
+      // Refresh balance after transaction completes
       setTimeout(fetchBalance, 1000);
     } catch (err: any) {
       console.error('Transaction failed:', err);
@@ -104,11 +234,81 @@ export default function WalletPanel() {
     }
   };
 
+  /**
+   * handleConnect
+   * 
+   * Initiates wallet connection using LazorKit's connect method.
+   * 
+   * How it works (per https://docs.lazorkit.com/react-sdk/use-wallet#connect):
+   * 
+   * First-time users:
+   * 1. Browser prompts for biometric authentication (Face ID/Touch ID/Windows Hello)
+   * 2. WebAuthn creates a passkey in device's Secure Enclave
+   * 3. LazorKit creates a Program Derived Address (PDA) smart wallet
+   * 4. Passkey is linked to the smart wallet
+   * 5. Session is stored securely
+   * 
+   * Returning users:
+   * 1. LazorKit checks for existing session
+   * 2. If session exists: Attempts to restore silently (may prompt for biometric)
+   * 3. If no session: Full authentication flow
+   * 
+   * Optional connect options:
+   * - feeMode: 'paymaster' | 'user' (default: 'paymaster')
+   *   - 'paymaster': Transactions are gasless (default)
+   *   - 'user': User pays transaction fees
+   * 
+   * Returns: Promise<WalletInfo> - Contains wallet address and metadata
+   * 
+   * Reference: https://docs.lazorkit.com/react-sdk/use-wallet#connect
+   */
   const handleConnect = async () => {
     try {
+      // Connect with default options (feeMode: 'paymaster' for gasless transactions)
       await connect();
+      // Optional: Specify fee mode
+      // await connect({ feeMode: 'paymaster' }); // or 'user'
     } catch (err) {
       console.error('Connection failed:', err);
+    }
+  };
+
+  /**
+   * handleSignMessage
+   * 
+   * Signs a message using the user's passkey.
+   * 
+   * How it works (per https://docs.lazorkit.com/react-sdk/use-wallet#signmessage):
+   * 
+   * 1. Prompts user for biometric authentication
+   * 2. Passkey signs the message in device's Secure Enclave
+   * 3. Returns signature and signed payload
+   * 
+   * Use cases:
+   * - Verify wallet ownership without sending a transaction
+   * - Authenticate users off-chain
+   * - Sign data for verification purposes
+   * 
+   * Returns: Promise<{ signature: string, signedPayload: string }>
+   * 
+   * Reference: https://docs.lazorkit.com/react-sdk/use-wallet#signmessage
+   */
+  const handleSignMessage = async () => {
+    if (!signMessage) return;
+
+    setIsSigningMessage(true);
+    setMessageError(null);
+    setMessageSignature(null);
+
+    try {
+      const message = 'Hello from LazorKit! This message was signed with my passkey.';
+      const { signature } = await signMessage(message);
+      setMessageSignature(signature);
+    } catch (err: any) {
+      console.error('Message signing failed:', err);
+      setMessageError(err.message || 'Message signing failed');
+    } finally {
+      setIsSigningMessage(false);
     }
   };
 
@@ -247,6 +447,50 @@ export default function WalletPanel() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </a>
+        </div>
+      )}
+
+      {/* Sign Message Button */}
+      <button
+        onClick={handleSignMessage}
+        disabled={isSigningMessage}
+        className="w-full px-4 py-3 rounded-lg font-medium transition-colors mb-3 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+      >
+        {isSigningMessage ? (
+          <span className="flex items-center justify-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            Signing Message...
+          </span>
+        ) : (
+          'Sign Message (Demo)'
+        )}
+      </button>
+
+      {/* Message Signature Result */}
+      {messageSignature && (
+        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+          <p className="text-xs font-semibold text-blue-800 mb-2">
+            Message Signed Successfully!
+          </p>
+          <p className="text-xs text-blue-700 mb-1">Signature:</p>
+          <p className="text-xs text-blue-700 mb-2 break-all font-mono">
+            {messageSignature}
+          </p>
+          <p className="text-xs text-blue-600">
+            This signature proves you own the wallet without sending a transaction.
+          </p>
+        </div>
+      )}
+
+      {/* Message Signing Error */}
+      {messageError && (
+        <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
+          <p className="text-xs font-semibold text-red-800 mb-1">
+            Message Signing Failed
+          </p>
+          <p className="text-xs text-red-700">
+            {messageError}
+          </p>
         </div>
       )}
 
