@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import {
   Connection,
@@ -29,27 +29,13 @@ export default function WalletPanel() {
   const [txSignature, setTxSignature] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
-  const connection = new Connection(RPC_URL, 'confirmed');
-
-  // Fetch balance when wallet connects
-  useEffect(() => {
-    if (isConnected && smartWalletPubkey) {
-      fetchBalance();
-      // Poll balance every 5 seconds
-      const interval = setInterval(fetchBalance, 5000);
-      return () => clearInterval(interval);
-    } else {
-      setBalance(null);
-      setTxSignature(null);
-      setTxError(null);
-    }
-  }, [isConnected, smartWalletPubkey]);
-
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     if (!smartWalletPubkey) return;
     setIsLoadingBalance(true);
     try {
+      const connection = new Connection(RPC_URL, 'confirmed');
       const balance = await connection.getBalance(smartWalletPubkey);
       setBalance(balance / LAMPORTS_PER_SOL);
     } catch (err) {
@@ -57,7 +43,21 @@ export default function WalletPanel() {
     } finally {
       setIsLoadingBalance(false);
     }
-  };
+  }, [smartWalletPubkey]);
+
+  // Fetch balance when wallet connects
+  useEffect(() => {
+    if (isConnected && smartWalletPubkey) {
+      fetchBalance();
+      // Poll balance every 15 seconds (reduced from 5s to avoid rate limiting)
+      const interval = setInterval(fetchBalance, 15000);
+      return () => clearInterval(interval);
+    } else {
+      setBalance(null);
+      setTxSignature(null);
+      setTxError(null);
+    }
+  }, [isConnected, smartWalletPubkey, fetchBalance]);
 
   const copyAddress = async () => {
     if (!smartWalletPubkey) return;
@@ -94,21 +94,60 @@ export default function WalletPanel() {
       });
       
       setTxSignature(signature);
-      // Refresh balance after transaction
-      setTimeout(fetchBalance, 1000);
-    } catch (err: any) {
+      // Refresh balance after transaction (with delay to avoid rate limiting)
+      setTimeout(fetchBalance, 2000);
+    } catch (err: unknown) {
       console.error('Transaction failed:', err);
-      setTxError(err.message || 'Transaction failed');
+      const errorMessage = err instanceof Error ? err.message : 'Transaction failed';
+      setTxError(errorMessage);
     } finally {
       setIsSendingTx(false);
     }
   };
 
   const handleConnect = async () => {
+    setConnectError(null);
+    
+    // Check if WebAuthn is supported
+    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+      setConnectError('WebAuthn is not supported in this browser. Please use a modern browser like Chrome, Safari, Firefox, or Edge.');
+      return;
+    }
+
+    // Check if we're on HTTPS or localhost (required for WebAuthn)
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      setConnectError('WebAuthn requires HTTPS. Please use HTTPS or localhost.');
+      return;
+    }
+
     try {
+      // With passkey={true} on LazorkitProvider, connect() should handle:
+      // 1. Creating passkey if it doesn't exist (triggers WebAuthn/biometric prompt)
+      // 2. Creating smart wallet with the passkey
+      // 3. Reconnecting if passkey and wallet already exist
       await connect();
-    } catch (err) {
+      setConnectError(null); // Clear error on success
+    } catch (err: unknown) {
       console.error('Connection failed:', err);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to connect wallet';
+      
+      const errorObj = err as { message?: string; name?: string };
+
+      if (errorObj?.message?.includes('passkeyPublicKey')) {
+        errorMessage = 'Passkey creation failed. Please ensure:\n• Your device supports biometric authentication (Face ID, Touch ID, Windows Hello)\n• You approve the biometric prompt when it appears\n• Your browser supports WebAuthn\n• You are not blocking the authentication prompt';
+      } else if (errorObj?.message?.includes('NotAllowedError') || errorObj?.name === 'NotAllowedError') {
+        errorMessage = 'Biometric authentication was canceled or denied. Please try again and approve the prompt.';
+      } else if (errorObj?.message?.includes('NotSupportedError') || errorObj?.name === 'NotSupportedError') {
+        errorMessage = 'Your device or browser does not support passkeys. Please use a device with Face ID, Touch ID, or Windows Hello.';
+      } else if (errorObj?.message?.includes('InvalidStateError') || errorObj?.name === 'InvalidStateError') {
+        errorMessage = 'A passkey already exists. Please try disconnecting and reconnecting.';
+      } else if (errorObj?.message) {
+        errorMessage = errorObj.message;
+      }
+      
+      setConnectError(errorMessage);
     }
   };
 
@@ -133,10 +172,14 @@ export default function WalletPanel() {
         <p className="text-sm text-gray-500 max-w-md text-center">
           Click to create or sign in with your passkey. No password or seed phrase needed!
         </p>
-        {error && (
-          <p className="text-sm text-red-600 mt-2">
-            {error.message}
-          </p>
+        {(error || connectError) && (
+          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700 max-w-md">
+            <p className="font-semibold mb-1">Connection Error:</p>
+            <p className="whitespace-pre-line">{connectError || error?.message || 'Unknown error'}</p>
+            <p className="text-xs text-red-600 mt-2">
+              💡 Tip: Make sure you approve the biometric prompt (Face ID, Touch ID, or Windows Hello) when it appears.
+            </p>
+          </div>
         )}
       </div>
     );

@@ -88,10 +88,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 │   │   ├── WalletPanelEnhanced.tsx     # Main wallet UI component
 │   │   ├── TransferModal.tsx           # Transfer SOL modal
 │   │   ├── TransactionHistory.tsx      # Transaction history viewer
-│   │   ├── WalletPanel.tsx             # Original wallet panel
-│   │   └── PasskeyAuth.tsx             # Passkey authentication
-│   ├── lib/
-│   │   └── passkey.ts                  # Passkey utility functions
+│   │   └── WalletPanel.tsx             # Original wallet panel
 │   ├── layout.tsx                      # Root layout
 │   ├── page.tsx                        # Landing page
 │   └── globals.css                     # Global styles + glassmorphism
@@ -234,6 +231,22 @@ The app uses a custom glassmorphism design system:
 
 ## 🔧 Configuration
 
+### RPC Rate Limiting
+
+**⚠️ Important**: The demo uses Solana's public Devnet RPC (`https://api.devnet.solana.com`) which has strict rate limits. You may see `429 Too Many Requests` errors during heavy usage.
+
+**Optimizations included:**
+- Balance polling: 15 seconds (reduced from 5s)
+- Transaction history: Fetches once on connect (not on every render)
+- Transaction limit: 5 transactions (reduced from 10)
+- Graceful error handling for 429 responses
+
+**For production or heavy testing**, use a private RPC provider. See [RPC_CONFIG.md](./RPC_CONFIG.md) for setup instructions:
+- Helius (Recommended - 100k requests/day free)
+- QuickNode (1M requests/month free)
+- Alchemy (300M compute units/month free)
+- Triton
+
 ### Environment Variables (Optional)
 
 Create `.env.local`:
@@ -241,7 +254,7 @@ Create `.env.local`:
 ```env
 NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 NEXT_PUBLIC_LAZORKIT_PORTAL_URL=https://portal.lazor.sh
-NEXT_PUBLIC_PAYMASTER_URL=https://lazorkit-paymaster.onrender.com
+NEXT_PUBLIC_PAYMASTER_URL=https://kora.devnet.lazorkit.com
 ```
 
 ### Mainnet Configuration

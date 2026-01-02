@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import { Connection } from '@solana/web3.js';
 
@@ -13,26 +13,25 @@ interface Transaction {
   type: string;
 }
 
-export default function TransactionHistory() {
+interface TransactionHistoryProps {
+  refreshTrigger?: number; // Increment this to trigger a refresh
+}
+
+export default function TransactionHistory({ refreshTrigger }: TransactionHistoryProps = {}) {
   const { smartWalletPubkey, isConnected } = useWallet();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const hasFetchedRef = useRef(false); // Cache: only fetch once per wallet connection
+  const lastRefreshTriggerRef = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    if (isConnected && smartWalletPubkey) {
-      fetchTransactions();
-    } else {
-      setTransactions([]);
-    }
-  }, [isConnected, smartWalletPubkey]);
-
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     if (!smartWalletPubkey) return;
     
     setIsLoading(true);
     try {
       const connection = new Connection(RPC_URL, 'confirmed');
-      const signatures = await connection.getSignaturesForAddress(smartWalletPubkey, { limit: 10 });
+      // Limit to 5 transactions to reduce RPC calls
+      const signatures = await connection.getSignaturesForAddress(smartWalletPubkey, { limit: 5 });
       
       const txs: Transaction[] = signatures.map(sig => ({
         signature: sig.signature,
@@ -41,12 +40,35 @@ export default function TransactionHistory() {
       }));
       
       setTransactions(txs);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch transactions:', err);
+      // Don't show error to user for rate limiting - it's expected on public RPC
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('429') || message.includes('rate limit')) {
+        console.warn('RPC rate limited - this is normal on public Devnet RPC. Consider using a private RPC provider.');
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [smartWalletPubkey]);
+
+  useEffect(() => {
+    if (isConnected && smartWalletPubkey) {
+      // Fetch if first time OR if refreshTrigger changed
+      const shouldRefresh = !hasFetchedRef.current || 
+        (refreshTrigger !== undefined && refreshTrigger !== lastRefreshTriggerRef.current);
+      
+      if (shouldRefresh) {
+        fetchTransactions();
+        hasFetchedRef.current = true;
+        lastRefreshTriggerRef.current = refreshTrigger;
+      }
+    } else {
+      setTransactions([]);
+      hasFetchedRef.current = false; // Reset when disconnected
+      lastRefreshTriggerRef.current = undefined;
+    }
+  }, [isConnected, smartWalletPubkey, refreshTrigger, fetchTransactions]);
 
   if (!isConnected) return null;
 

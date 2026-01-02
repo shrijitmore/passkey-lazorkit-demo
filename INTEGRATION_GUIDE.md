@@ -70,7 +70,7 @@ import { useMemo, type ReactNode } from 'react';
 // Configuration constants
 const RPC_URL = 'https://api.devnet.solana.com';
 const PORTAL_URL = 'https://portal.lazor.sh';
-const PAYMASTER_URL = 'https://lazorkit-paymaster.onrender.com';
+const PAYMASTER_URL = 'https://kora.devnet.lazorkit.com'; // Official Devnet paymaster
 
 export default function LazorkitProviderWrapper({
   children,
@@ -163,7 +163,7 @@ Enables gasless transactions:
 
 ```typescript
 paymasterConfig: {
-  paymasterUrl: 'https://lazorkit-paymaster.onrender.com'
+  paymasterUrl: 'https://kora.devnet.lazorkit.com' // Official Devnet paymaster
 }
 ```
 
@@ -180,7 +180,7 @@ Create `.env.local`:
 ```env
 NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 NEXT_PUBLIC_LAZORKIT_PORTAL_URL=https://portal.lazor.sh
-NEXT_PUBLIC_PAYMASTER_URL=https://lazorkit-paymaster.onrender.com
+NEXT_PUBLIC_PAYMASTER_URL=https://kora.devnet.lazorkit.com
 ```
 
 Then update your provider:

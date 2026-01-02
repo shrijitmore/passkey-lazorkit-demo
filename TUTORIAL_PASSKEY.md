@@ -62,7 +62,7 @@ import { useMemo, type ReactNode } from 'react';
 
 const RPC_URL = 'https://api.devnet.solana.com';
 const PORTAL_URL = 'https://portal.lazor.sh';
-const PAYMASTER_URL = 'https://lazorkit-paymaster.onrender.com';
+const PAYMASTER_URL = 'https://kora.devnet.lazorkit.com'; // Official Devnet paymaster
 
 export default function LazorkitProviderWrapper({
   children,

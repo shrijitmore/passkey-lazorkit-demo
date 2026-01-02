@@ -1,16 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import GlitchText from '@/app/components/GlitchText';
 import WalletPanelEnhanced from '@/app/components/WalletPanelEnhanced';
 
 export default function Home() {
   const { isConnected } = useWallet();
-  const [activeSection, setActiveSection] = useState<'home' | 'wallet' | 'features'>('home');
 
   const scrollToSection = (section: 'home' | 'wallet' | 'features') => {
-    setActiveSection(section);
     const element = document.getElementById(section);
     element?.scrollIntoView({ behavior: 'smooth' });
   };

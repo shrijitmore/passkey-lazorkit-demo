@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import {
   Connection,
@@ -29,27 +29,14 @@ export default function WalletPanelEnhanced() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [lastTxSignature, setLastTxSignature] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [txHistoryRefreshTrigger, setTxHistoryRefreshTrigger] = useState(0);
 
-  const connection = new Connection(RPC_URL, 'confirmed');
-
-  // Fetch balance when wallet connects
-  useEffect(() => {
-    if (isConnected && smartWalletPubkey) {
-      fetchBalance();
-      // Poll balance every 5 seconds
-      const interval = setInterval(fetchBalance, 5000);
-      return () => clearInterval(interval);
-    } else {
-      setBalance(null);
-      setLastTxSignature(null);
-      setShowSuccess(false);
-    }
-  }, [isConnected, smartWalletPubkey]);
-
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     if (!smartWalletPubkey) return;
     setIsLoadingBalance(true);
     try {
+      const connection = new Connection(RPC_URL, 'confirmed');
       const balance = await connection.getBalance(smartWalletPubkey);
       setBalance(balance / LAMPORTS_PER_SOL);
     } catch (err) {
@@ -57,7 +44,21 @@ export default function WalletPanelEnhanced() {
     } finally {
       setIsLoadingBalance(false);
     }
-  };
+  }, [smartWalletPubkey]);
+
+  // Fetch balance when wallet connects
+  useEffect(() => {
+    if (isConnected && smartWalletPubkey) {
+      fetchBalance();
+      // Poll balance every 15 seconds (reduced from 5s to avoid rate limiting)
+      const interval = setInterval(fetchBalance, 15000);
+      return () => clearInterval(interval);
+    } else {
+      setBalance(null);
+      setLastTxSignature(null);
+      setShowSuccess(false);
+    }
+  }, [isConnected, smartWalletPubkey, fetchBalance]);
 
   const copyAddress = async () => {
     if (!smartWalletPubkey) return;
@@ -75,13 +76,56 @@ export default function WalletPanelEnhanced() {
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 5000);
     fetchBalance();
+    // Trigger transaction history refresh after a delay (to allow transaction to be indexed)
+    setTimeout(() => {
+      setTxHistoryRefreshTrigger(prev => prev + 1);
+    }, 3000);
   };
 
   const handleConnect = async () => {
+    setConnectError(null);
+    
+    // Check if WebAuthn is supported
+    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+      setConnectError('WebAuthn is not supported in this browser. Please use a modern browser like Chrome, Safari, Firefox, or Edge.');
+      return;
+    }
+
+    // Check if we're on HTTPS or localhost (required for WebAuthn)
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      setConnectError('WebAuthn requires HTTPS. Please use HTTPS or localhost.');
+      return;
+    }
+
     try {
+      // With passkey={true} on LazorkitProvider, connect() should handle:
+      // 1. Creating passkey if it doesn't exist (triggers WebAuthn/biometric prompt)
+      // 2. Creating smart wallet with the passkey
+      // 3. Reconnecting if passkey and wallet already exist
       await connect();
-    } catch (err) {
+      setConnectError(null); // Clear error on success
+    } catch (err: unknown) {
       console.error('Connection failed:', err);
+      console.error('Failed to connect wallet:', err);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to connect wallet';
+      
+      const errorObj = err as { message?: string; name?: string };
+
+      if (errorObj?.message?.includes('passkeyPublicKey')) {
+        errorMessage = 'Passkey creation failed. Please ensure:\n• Your device supports biometric authentication (Face ID, Touch ID, Windows Hello)\n• You approve the biometric prompt when it appears\n• Your browser supports WebAuthn\n• You are not blocking the authentication prompt';
+      } else if (errorObj?.message?.includes('NotAllowedError') || errorObj?.name === 'NotAllowedError') {
+        errorMessage = 'Biometric authentication was canceled or denied. Please try again and approve the prompt.';
+      } else if (errorObj?.message?.includes('NotSupportedError') || errorObj?.name === 'NotSupportedError') {
+        errorMessage = 'Your device or browser does not support passkeys. Please use a device with Face ID, Touch ID, or Windows Hello.';
+      } else if (errorObj?.message?.includes('InvalidStateError') || errorObj?.name === 'InvalidStateError') {
+        errorMessage = 'A passkey already exists. Please try disconnecting and reconnecting.';
+      } else if (errorObj?.message) {
+        errorMessage = errorObj.message;
+      }
+      
+      setConnectError(errorMessage);
     }
   };
 
@@ -134,9 +178,20 @@ export default function WalletPanelEnhanced() {
             </div>
           </div>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 w-full" data-testid="connection-error">
-              <p className="text-sm text-red-400">{error.message}</p>
+          {(error || connectError) && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 w-full" data-testid="connection-error">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-400 mb-1">Connection Error</p>
+                  <p className="text-xs text-red-300 whitespace-pre-line">{connectError || error?.message || 'Unknown error'}</p>
+                  <p className="text-xs text-red-400/80 mt-2">
+                    💡 Tip: Make sure you approve the biometric prompt (Face ID, Touch ID, or Windows Hello) when it appears.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -315,7 +370,7 @@ export default function WalletPanelEnhanced() {
       </div>
 
       {/* Transaction History */}
-      <TransactionHistory />
+      <TransactionHistory refreshTrigger={txHistoryRefreshTrigger} />
 
       {/* Transfer Modal */}
       <TransferModal

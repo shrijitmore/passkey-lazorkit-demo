@@ -75,7 +75,7 @@ import { useMemo, type ReactNode } from 'react';
 
 const RPC_URL = 'https://api.devnet.solana.com';
 const PORTAL_URL = 'https://portal.lazor.sh';
-const PAYMASTER_URL = 'https://lazorkit-paymaster.onrender.com'; // 🔑 Paymaster endpoint
+const PAYMASTER_URL = 'https://kora.devnet.lazorkit.com'; // 🔑 Official Devnet paymaster
 
 export default function LazorkitProviderWrapper({
   children,
@@ -480,9 +480,9 @@ const checkPaymasterStatus = async () => {
 For production apps with high volume:
 
 ```tsx
-// Option 1: Use LazorKit's paid paymaster tier
+// Option 1: Use LazorKit's production paymaster
 const paymasterConfig = {
-  paymasterUrl: 'https://paymaster-pro.lazorkit.com',
+  paymasterUrl: 'https://kora.mainnet.lazorkit.com', // Mainnet paymaster
   apiKey: process.env.LAZORKIT_API_KEY,
 };
 
@@ -602,7 +602,7 @@ console.log('Fee payer:', tx?.transaction.message.accountKeys[0]);
 const { paymasterConfig } = useLazorkit();
 console.log('Paymaster:', paymasterConfig?.paymasterUrl);
 
-// Should output: https://lazorkit-paymaster.onrender.com
+// Should output: https://kora.devnet.lazorkit.com
 ```
 
 ### Issue: "Transaction too large"

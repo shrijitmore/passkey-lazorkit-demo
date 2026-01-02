@@ -3,13 +3,10 @@
 import { useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import {
-  Connection,
   SystemProgram,
   LAMPORTS_PER_SOL,
   PublicKey,
 } from '@solana/web3.js';
-
-const RPC_URL = 'https://api.devnet.solana.com';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -57,9 +54,10 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       setRecipient('');
       setAmount('');
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Transfer failed:', err);
-      setError(err.message || 'Transfer failed. Please check the address and amount.');
+      const errorMessage = err instanceof Error ? err.message : 'Transfer failed. Please check the address and amount.';
+      setError(errorMessage);
     } finally {
       setIsSending(false);
     }
@@ -129,7 +127,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
               <span className="font-semibold">Gasless Transaction</span>
             </div>
             <p className="text-xs text-gray-400">
-              No transaction fees! LazorKit's paymaster will cover the gas costs.
+              No transaction fees! LazorKit&apos;s paymaster will cover the gas costs.
             </p>
           </div>
 
