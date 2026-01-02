@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import LazorkitProviderWrapper from './components/LazorkitProviderWrapper';
+import { ThemeProvider } from './contexts/ThemeContext';
 import './globals.css';
 
 export const metadata = {
@@ -11,9 +12,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <LazorkitProviderWrapper>
-          {children}
-        </LazorkitProviderWrapper>
+        <ThemeProvider>
+          <LazorkitProviderWrapper>
+            {children}
+          </LazorkitProviderWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );
