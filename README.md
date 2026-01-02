@@ -32,10 +32,11 @@ A production-ready Next.js starter template showcasing **LazorKit SDK** integrat
 - **Production-ready** - Battle-tested paymaster infrastructure
 
 ### 🎨 Modern Design
-- **Glassmorphism UI** - Stunning frosted glass effects
-- **Dark mode** - Eye-friendly purple/pink gradient theme
-- **Animated components** - Glitch text effects and smooth transitions
+- **Glassmorphism UI** - Stunning frosted glass effects with spotlight cards
+- **Dark/Light mode** - Eye-friendly themes with smooth transitions
+- **Modern animations** - Spotlight effects, glitch text, and smooth transitions
 - **Mobile-responsive** - Works perfectly on all devices
+- **Theme toggle** - Switch between dark (cyan/purple) and light modes
 
 ### 🛠️ Developer Experience
 - **Type-safe** - Full TypeScript support
