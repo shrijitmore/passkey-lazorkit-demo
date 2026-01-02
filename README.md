@@ -351,6 +351,31 @@ next dev --experimental-https
 - [Solana Web3.js](https://docs.solana.com) - Solana development guide
 - [WebAuthn Guide](https://webauthn.guide) - Understanding passkeys
 
+### Advanced Use Cases
+
+#### 1. Subscription Billing with Smart Wallets
+The demo includes a complete subscription billing interface showing how to:
+- Set up recurring payments with passkey authentication
+- Automate monthly billing with smart wallet permissions
+- Manage subscription tiers (Basic, Pro, Enterprise)
+- Handle subscription lifecycle (activate, cancel, upgrade)
+
+**Why this matters:** Traditional Web3 subscriptions require users to manually approve each payment. With LazorKit smart wallets, users approve once and payments happen automatically - just like Web2 subscriptions but with blockchain transparency and security.
+
+**Production Implementation:** Integrate with Solana programs like Clockwork or Streamflow for automated recurring payments. The passkey authentication flow remains unchanged.
+
+#### 2. NFT Minting & Gaming Rewards
+Perfect for:
+- Gasless NFT minting for new users
+- In-game item distribution
+- Achievement badges and rewards
+
+#### 3. E-Commerce & Payments
+Ideal for:
+- Checkout flows with USDC/SOL
+- No gas fees for customers
+- Instant settlements
+
 ### Community
 - [LazorKit Telegram](https://t.me/lazorkit) - Ask questions and get support
 - [Solana Discord](https://discord.gg/solana) - Solana developer community
