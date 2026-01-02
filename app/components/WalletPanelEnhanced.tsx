@@ -242,19 +242,19 @@ export default function WalletPanelEnhanced() {
       <div className="glass-strong rounded-2xl p-6" data-testid="wallet-info">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 gradient-purple-pink rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 gradient-primary rounded-full flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
             </div>
             <div>
-              <p className="text-xs text-gray-400">Smart Wallet</p>
-              <p className="font-semibold text-white">Connected</p>
+              <p className="text-xs text-secondary">Smart Wallet</p>
+              <p className="font-semibold text-primary-text">Connected</p>
             </div>
           </div>
           <button
             onClick={disconnect}
-            className="text-sm text-gray-400 hover:text-white transition-colors"
+            className="text-sm text-secondary hover:text-primary-text transition-colors"
             data-testid="disconnect-btn"
           >
             Disconnect
@@ -263,27 +263,27 @@ export default function WalletPanelEnhanced() {
 
         {/* Balance */}
         <div className="glass-dark rounded-xl p-6 mb-6">
-          <p className="text-sm text-gray-400 mb-2">Total Balance</p>
+          <p className="text-sm text-secondary mb-2">Total Balance</p>
           <div className="flex items-end gap-3">
             {isLoadingBalance ? (
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-400 border-t-transparent"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
             ) : (
               <>
                 <p className="text-4xl font-bold gradient-text">
                   {balance !== null ? balance.toFixed(4) : '0.0000'}
                 </p>
-                <p className="text-lg text-gray-400 mb-1">SOL</p>
+                <p className="text-lg text-secondary mb-1">SOL</p>
               </>
             )}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Solana Devnet</p>
+          <p className="text-xs text-secondary mt-2">Solana Devnet</p>
         </div>
 
         {/* Address */}
         <div className="glass-dark rounded-xl p-4 mb-6">
-          <p className="text-xs text-gray-400 mb-2">Wallet Address</p>
+          <p className="text-xs text-secondary mb-2">Wallet Address</p>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-mono text-white truncate flex-1">
+            <p className="text-sm font-mono text-primary-text truncate flex-1">
               {walletAddress}
             </p>
             <div className="flex gap-2">
@@ -300,7 +300,7 @@ export default function WalletPanelEnhanced() {
                     Copied
                   </span>
                 ) : (
-                  <span className="text-purple-400 flex items-center gap-1">
+                  <span className="text-primary flex items-center gap-1">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
@@ -315,7 +315,7 @@ export default function WalletPanelEnhanced() {
                 className="px-3 py-2 glass rounded-lg hover:bg-white/10 transition-all"
                 data-testid="explorer-link"
               >
-                <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
               </a>
@@ -328,7 +328,7 @@ export default function WalletPanelEnhanced() {
           <button
             onClick={() => setShowTransferModal(true)}
             disabled={!hasBalance}
-            className={`px-6 py-4 gradient-purple-pink text-white rounded-xl font-semibold transition-all ${
+            className={`px-6 py-4 gradient-primary text-white rounded-xl font-semibold transition-all ${
               hasBalance ? 'hover:opacity-90 btn-glow' : 'opacity-50 cursor-not-allowed'
             }`}
             data-testid="send-sol-btn"
@@ -345,7 +345,7 @@ export default function WalletPanelEnhanced() {
             href={FAUCET_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-6 py-4 glass text-white rounded-xl font-semibold hover:bg-white/10 transition-all"
+            className="px-6 py-4 glass text-primary-text rounded-xl font-semibold hover:bg-white/10 transition-all"
             data-testid="get-devnet-sol-btn"
           >
             <div className="flex items-center justify-center gap-2">
@@ -366,7 +366,7 @@ export default function WalletPanelEnhanced() {
               </svg>
               <div>
                 <p className="text-sm font-semibold text-yellow-400 mb-1">Fund Your Wallet</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-secondary">
                   Get Devnet SOL from the faucet to start testing. Transactions are signed with passkeys via LazorKit!
                 </p>
               </div>
