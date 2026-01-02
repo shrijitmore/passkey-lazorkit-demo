@@ -8,6 +8,8 @@ import {
 } from '@solana/web3.js';
 import TransferModal from './TransferModal';
 import TransactionHistory from './TransactionHistory';
+import SpotlightCard from './SpotlightCard';
+import { useTheme } from '../contexts/ThemeContext';
 
 const RPC_URL = 'https://api.devnet.solana.com';
 const EXPLORER_URL = 'https://explorer.solana.com';
