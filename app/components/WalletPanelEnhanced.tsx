@@ -142,61 +142,66 @@ export default function WalletPanelEnhanced() {
 
   if (!isConnected) {
     return (
-      <div className="glass-strong rounded-2xl p-8 max-w-md w-full" data-testid="wallet-connect">
-        <div className="flex flex-col items-center gap-6">
-          <div className="w-16 h-16 gradient-purple-pink rounded-full flex items-center justify-center animate-pulse-glow">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          
-          <div className="text-center">
-            <h3 className="text-2xl font-bold mb-2">Connect Your Wallet</h3>
-            <p className="text-gray-400 text-sm">
-              Use passkey authentication - no passwords or seed phrases needed
-            </p>
-          </div>
-
-          <button
-            onClick={handleConnect}
-            className="px-8 py-4 gradient-purple-pink text-white rounded-xl hover:opacity-90 transition-all font-semibold text-lg btn-glow w-full"
-            data-testid="connect-wallet-btn"
-          >
-            Connect with Passkey
-          </button>
-
-          <div className="glass-dark rounded-lg p-4 w-full">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      <SpotlightCard
+        spotlightColor={theme === 'dark' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(168, 85, 247, 0.15)'}
+        className="max-w-md w-full"
+      >
+        <div className="glass-strong p-8" data-testid="wallet-connect">
+          <div className="flex flex-col items-center gap-6">
+            <div className="w-16 h-16 gradient-primary rounded-full flex items-center justify-center animate-pulse-glow">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <div>
-                <p className="text-sm font-semibold text-white mb-1">Secure & Convenient</p>
-                <p className="text-xs text-gray-400">
-                  Face ID, Touch ID, or device PIN - your choice, your security
-                </p>
-              </div>
             </div>
-          </div>
+            
+            <div className="text-center">
+              <h3 className="text-2xl font-bold mb-2 text-primary-text">Connect Your Wallet</h3>
+              <p className="text-secondary text-sm">
+                Use passkey authentication - no passwords or seed phrases needed
+              </p>
+            </div>
 
-          {(error || connectError) && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 w-full" data-testid="connection-error">
+            <button
+              onClick={handleConnect}
+              className="px-8 py-4 gradient-primary text-white rounded-xl hover:opacity-90 transition-all font-semibold text-lg btn-glow w-full"
+              data-testid="connect-wallet-btn"
+            >
+              Connect with Passkey
+            </button>
+
+            <div className="glass-dark rounded-lg p-4 w-full">
               <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-red-400 mb-1">Connection Error</p>
-                  <p className="text-xs text-red-300 whitespace-pre-line">{connectError || error?.message || 'Unknown error'}</p>
-                  <p className="text-xs text-red-400/80 mt-2">
-                    💡 Tip: Make sure you approve the biometric prompt (Face ID, Touch ID, or Windows Hello) when it appears.
+                <div>
+                  <p className="text-sm font-semibold text-primary-text mb-1">Secure & Convenient</p>
+                  <p className="text-xs text-secondary">
+                    Face ID, Touch ID, or device PIN - your choice, your security
                   </p>
                 </div>
               </div>
             </div>
-          )}
+
+            {(error || connectError) && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 w-full" data-testid="connection-error">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-red-400 mb-1">Connection Error</p>
+                    <p className="text-xs text-red-300 whitespace-pre-line">{connectError || error?.message || 'Unknown error'}</p>
+                    <p className="text-xs text-red-400/80 mt-2">
+                      💡 Tip: Make sure you approve the biometric prompt (Face ID, Touch ID, or Windows Hello) when it appears.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </SpotlightCard>
     );
   }
 
