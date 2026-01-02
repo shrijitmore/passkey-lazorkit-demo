@@ -89,7 +89,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto text-center">
           <div className="mb-8 animate-float">
             <div className="inline-block glass-strong rounded-2xl p-3 mb-6">
-              <span className="text-sm font-semibold text-purple-400">🚀 Superteam Earn Bounty Submission</span>
+              <span className="text-sm font-semibold text-primary">🚀 Superteam Earn Bounty Submission</span>
             </div>
             
             <h1 className="text-6xl md:text-8xl font-bold mb-6">
@@ -102,11 +102,11 @@ export default function Home() {
               Passkey Authentication Meets
             </p>
             <p className="text-3xl md:text-4xl font-semibold mb-8">
-              <span className="text-white">Smart Wallet</span>{' '}
+              <span className="text-primary-text">Smart Wallet</span>{' '}
               <span className="gradient-text">Solana Transactions</span>
             </p>
             
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-12">
+            <p className="text-xl text-secondary max-w-3xl mx-auto mb-12">
               No seed phrases. No wallet extensions. Biometric authentication.
               <br />
               Just your fingerprint or face. Welcome to the future of Web3 UX.
@@ -115,7 +115,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
                 onClick={() => scrollToSection('wallet')}
-                className="px-8 py-4 gradient-purple-pink text-white rounded-xl font-semibold text-lg hover:opacity-90 transition-all btn-glow"
+                className="px-8 py-4 gradient-primary text-white rounded-xl font-semibold text-lg hover:opacity-90 transition-all btn-glow"
                 data-testid="cta-try-now"
               >
                 Try It Now
@@ -124,7 +124,7 @@ export default function Home() {
                 href="https://docs.lazorkit.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-8 py-4 glass text-white rounded-xl font-semibold text-lg hover:bg-white/10 transition-all"
+                className="px-8 py-4 glass text-primary-text rounded-xl font-semibold text-lg hover:bg-white/10 transition-all"
                 data-testid="cta-documentation"
               >
                 Documentation
@@ -142,7 +142,7 @@ export default function Home() {
               <div key={i} className="glass-strong rounded-2xl p-6 card-hover" data-testid={`stat-${i}`}>
                 <div className="text-4xl mb-3">{stat.icon}</div>
                 <p className="text-2xl font-bold gradient-text mb-1">{stat.value}</p>
-                <p className="text-gray-400">{stat.label}</p>
+                <p className="text-secondary">{stat.label}</p>
               </div>
             ))}
           </div>
