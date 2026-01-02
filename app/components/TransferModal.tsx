@@ -283,7 +283,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           <button
             type="submit"
             disabled={txStatus !== 'idle' && txStatus !== 'error'}
-            className="w-full px-6 py-3 gradient-purple-pink text-white rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
+            className="w-full px-6 py-3 gradient-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
             data-testid="send-transfer-btn"
           >
             {txStatus === 'signing' && (
