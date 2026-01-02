@@ -102,7 +102,7 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
               href={`${EXPLORER_URL}/tx/${tx.signature}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
-              className="block glass-dark rounded-lg p-4 hover:border-purple-500/50 transition-all card-hover"
+              className="block glass-dark rounded-lg p-4 hover:border-primary/50 transition-all card-hover"
               data-testid={`transaction-item-${index}`}
             >
               <div className="flex items-start justify-between">
