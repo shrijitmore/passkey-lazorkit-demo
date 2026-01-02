@@ -261,7 +261,7 @@ function YourApp() {
             <h2 className="text-5xl font-bold mb-4">
               <span className="gradient-text">Live Demo</span>
             </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            <p className="text-xl text-secondary max-w-2xl mx-auto">
               Try it yourself! Connect with your passkey and send a transaction on Solana Devnet
             </p>
           </div>
@@ -273,12 +273,12 @@ function YourApp() {
       </section>
 
       {/* Footer */}
-      <footer className="glass-strong border-t border-white/10 py-8">
+      <footer className="glass-strong border-t border-primary/10 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 gradient-purple-pink rounded-lg"></div>
-              <span className="font-semibold text-gray-400">LazorKit Demo</span>
+              <div className="w-8 h-8 gradient-primary rounded-lg"></div>
+              <span className="font-semibold text-secondary">LazorKit Demo</span>
             </div>
             
             <div className="flex items-center gap-6">
@@ -286,7 +286,7 @@ function YourApp() {
                 href="https://docs.lazorkit.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-secondary hover:text-primary-text transition-colors"
               >
                 Documentation
               </a>
@@ -294,7 +294,7 @@ function YourApp() {
                 href="https://github.com/lazor-kit/lazor-kit"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-secondary hover:text-primary-text transition-colors"
               >
                 GitHub
               </a>
@@ -302,14 +302,14 @@ function YourApp() {
                 href="https://t.me/lazorkit"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-secondary hover:text-primary-text transition-colors"
               >
                 Telegram
               </a>
             </div>
             
-            <p className="text-sm text-gray-500">
-              Built for <span className="text-purple-400">Superteam Earn</span>
+            <p className="text-sm text-secondary">
+              Built for <span className="text-primary">Superteam Earn</span>
             </p>
           </div>
         </div>
