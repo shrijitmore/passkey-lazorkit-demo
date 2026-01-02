@@ -43,10 +43,12 @@ A production-ready Next.js starter template showcasing **LazorKit SDK** integrat
 - **Transaction History** - View past transactions with real-time updates
 - **Multi-signature Support** - Ready for complex wallet setups
 - **Cross-device Sync** - Passkeys work across all your devices
+### 🛠️ Developer Experience
 - **Type-safe** - Full TypeScript support
 - **Well-documented** - Comprehensive tutorials and guides
 - **Clean code** - Easy to understand and modify
 - **Production-ready** - Ready for deployment
+- **Modern UI patterns** - Spotlight cards, theme system, advanced animations
 
 ---
 
