@@ -25,6 +25,7 @@ export default function WalletPanelEnhanced() {
     error,
   } = useWallet();
 
+  const { theme } = useTheme();
   const [balance, setBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [copied, setCopied] = useState(false);
