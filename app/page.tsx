@@ -72,12 +72,12 @@ export default function Home() {
               Passkey Authentication Meets
             </p>
             <p className="text-3xl md:text-4xl font-semibold mb-8">
-              <span className="text-white">Gasless</span>{' '}
+              <span className="text-white">Smart Wallet</span>{' '}
               <span className="gradient-text">Solana Transactions</span>
             </p>
             
             <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-12">
-              No seed phrases. No transaction fees. No wallet extensions.
+              No seed phrases. No wallet extensions. Biometric authentication.
               <br />
               Just your fingerprint or face. Welcome to the future of Web3 UX.
             </p>
@@ -106,7 +106,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
             {[
               { icon: '🔐', label: 'Passkey Auth', value: '100% Secure' },
-              { icon: '⚡', label: 'Gasless Txns', value: '$0 Fees' },
+              { icon: '⚡', label: 'Smart Wallet', value: 'LazorKit' },
               { icon: '🚀', label: 'Setup Time', value: '<5 Min' },
             ].map((stat, i) => (
               <div key={i} className="glass-strong rounded-2xl p-6 card-hover" data-testid={`stat-${i}`}>
@@ -149,8 +149,8 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 ),
-                title: 'Gasless Transactions',
-                description: 'LazorKit\'s paymaster covers all transaction fees. Your users never worry about having SOL for gas.',
+                title: 'Smart Wallet Transactions',
+                description: 'Native SOL transfers are wallet-paid (realistic production behavior). Token transfers may be eligible for paymaster sponsorship.',
                 gradient: 'gradient-blue-purple',
               },
               {
@@ -227,7 +227,7 @@ function YourApp() {
               <span className="gradient-text">Live Demo</span>
             </h2>
             <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-              Try it yourself! Connect with your passkey and send a gasless transaction on Solana Devnet
+              Try it yourself! Connect with your passkey and send a transaction on Solana Devnet
             </p>
           </div>
 

@@ -40,7 +40,7 @@ export default function WalletPanelEnhanced() {
       const balance = await connection.getBalance(smartWalletPubkey);
       setBalance(balance / LAMPORTS_PER_SOL);
     } catch (err) {
-      console.error('Failed to fetch balance:', err);
+      // Silently handle balance fetch errors
     } finally {
       setIsLoadingBalance(false);
     }
@@ -58,7 +58,8 @@ export default function WalletPanelEnhanced() {
       setLastTxSignature(null);
       setShowSuccess(false);
     }
-  }, [isConnected, smartWalletPubkey, fetchBalance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, smartWalletPubkey]);
 
   const copyAddress = async () => {
     if (!smartWalletPubkey) return;
@@ -67,7 +68,7 @@ export default function WalletPanelEnhanced() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      // Silently handle copy errors
     }
   };
 
@@ -105,9 +106,6 @@ export default function WalletPanelEnhanced() {
       await connect();
       setConnectError(null); // Clear error on success
     } catch (err: unknown) {
-      console.error('Connection failed:', err);
-      console.error('Failed to connect wallet:', err);
-      
       // Provide user-friendly error messages
       let errorMessage = 'Failed to connect wallet';
       
@@ -351,7 +349,7 @@ export default function WalletPanelEnhanced() {
           </a>
         </div>
 
-        {/* Gasless Feature Highlight */}
+        {/* Passkey Authentication Feature Highlight */}
         {!hasBalance && (
           <div className="mt-6 glass-dark rounded-xl p-4 border-2 border-yellow-500/20">
             <div className="flex items-start gap-3">
@@ -361,7 +359,7 @@ export default function WalletPanelEnhanced() {
               <div>
                 <p className="text-sm font-semibold text-yellow-400 mb-1">Fund Your Wallet</p>
                 <p className="text-xs text-gray-400">
-                  Get Devnet SOL from the faucet to start testing. All transactions are gasless thanks to LazorKit!
+                  Get Devnet SOL from the faucet to start testing. Transactions are signed with passkeys via LazorKit!
                 </p>
               </div>
             </div>

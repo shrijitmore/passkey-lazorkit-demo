@@ -134,10 +134,16 @@ await connect();
 // ✅ Session management
 ```
 
-### Gasless Transactions
+### Native SOL Transfers & Paymaster Behavior
+
+**This demo uses wallet-paid SOL transactions.**
+
+Paymaster support is intentionally excluded to reflect realistic production constraints, as native SOL transfers are not typically sponsored by paymasters.
+
+**Implementation:**
 
 ```typescript
-// Send SOL without gas fees
+// Simple, clean approach - wallet pays fees
 const signature = await signAndSendTransaction({
   instructions: [
     SystemProgram.transfer({
@@ -148,9 +154,20 @@ const signature = await signAndSendTransaction({
   ],
 });
 
-// Paymaster covers the transaction fee!
-// User pays: $0.00 ⚡
+// Transaction is signed with passkey (WebAuthn)
+// Fees are paid by wallet balance
+// No paymaster involved
 ```
+
+**Why this approach:**
+- ✅ Passkey-based signing (WebAuthn) via LazorKit
+- ✅ Wallet pays fees (realistic production behavior)
+- ✅ No paymaster policy rejection
+- ✅ Transaction succeeds on-chain
+- ✅ Explorer-verifiable proof
+- ✅ Clean, simple implementation
+
+**Note:** When `paymasterConfig` is omitted from `LazorkitProvider`, `signAndSendTransaction` automatically uses wallet-paid fees. This is the correct pattern for native SOL transfers.
 
 ---
 

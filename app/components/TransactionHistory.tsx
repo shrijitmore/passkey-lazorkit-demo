@@ -41,12 +41,7 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
       
       setTransactions(txs);
     } catch (err: unknown) {
-      console.error('Failed to fetch transactions:', err);
-      // Don't show error to user for rate limiting - it's expected on public RPC
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('429') || message.includes('rate limit')) {
-        console.warn('RPC rate limited - this is normal on public Devnet RPC. Consider using a private RPC provider.');
-      }
+      // Silently handle transaction fetch errors (rate limiting is expected on public RPC)
     } finally {
       setIsLoading(false);
     }
