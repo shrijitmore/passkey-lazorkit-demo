@@ -209,13 +209,13 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
 
           {/* Gasless transaction info */}
           <div className="glass rounded-lg p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm text-purple-300">
+            <div className="flex items-center gap-2 text-sm text-primary">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
               <span className="font-semibold">Gasless Transaction</span>
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-secondary">
               No transaction fees! LazorKit&apos;s paymaster will cover the gas costs.
             </p>
           </div>
