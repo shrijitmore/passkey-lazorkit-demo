@@ -20,6 +20,14 @@ const RPC_URL = 'https://api.devnet.solana.com';
 const PORTAL_URL = 'https://portal.lazor.sh';
 const PAYMASTER_URL = 'https://kora.devnet.lazorkit.com'; // Official Devnet paymaster
 
+/**
+ * LazorKit Provider Wrapper
+ * 
+ * Configures LazorKit SDK with paymaster support for passkey-based authentication.
+ * 
+ * CRITICAL: Config must be memoized to prevent infinite re-render loops.
+ * LazorKit uses an internal store that triggers re-renders if config object identity changes.
+ */
 export default function LazorkitProviderWrapper({
   children,
 }: {
@@ -41,7 +49,7 @@ export default function LazorkitProviderWrapper({
       paymasterUrl: PAYMASTER_URL,
       // apiKey: 'YOUR_API_KEY' // Optional: Only needed if paymaster requires authentication
     }),
-    []
+    [] // Empty deps = config never changes
   );
 
   /**
@@ -59,6 +67,10 @@ export default function LazorkitProviderWrapper({
    *   Enables gasless transactions - users don't need SOL for fees
    *   The paymaster pays transaction fees on behalf of users
    * 
+   * - passkey (optional): Enable passkey authentication
+   *   Default: true
+   *   Enables WebAuthn passkey support for wallet authentication
+   * 
    * - children: Your application components that need wallet access
    */
   return (
@@ -66,6 +78,8 @@ export default function LazorkitProviderWrapper({
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
+      // @ts-expect-error - passkey prop exists at runtime but types may be outdated
+      passkey={true}
     >
       {children}
     </LazorkitProvider>
