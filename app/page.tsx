@@ -156,7 +156,7 @@ export default function Home() {
             <h2 className="text-5xl font-bold mb-4 gradient-text">
               Why LazorKit?
             </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            <p className="text-xl text-secondary max-w-2xl mx-auto">
               Built for developers who want to ship amazing Web3 experiences without the complexity
             </p>
           </div>
@@ -208,8 +208,8 @@ export default function Home() {
                 <div className={`w-16 h-16 ${feature.gradient} rounded-xl flex items-center justify-center mb-6 text-white`}>
                   {feature.icon}
                 </div>
-                <h3 className="text-2xl font-bold mb-3 text-white">{feature.title}</h3>
-                <p className="text-gray-400 leading-relaxed">{feature.description}</p>
+                <h3 className="text-2xl font-bold mb-3 text-primary-text">{feature.title}</h3>
+                <p className="text-secondary leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -217,10 +217,10 @@ export default function Home() {
           {/* Code Example */}
           <div className="mt-12 glass-dark rounded-2xl p-8" data-testid="code-example">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">Quick Start</h3>
-              <span className="text-xs text-gray-500 font-mono">TypeScript</span>
+              <h3 className="text-xl font-bold text-primary-text">Quick Start</h3>
+              <span className="text-xs text-secondary font-mono">TypeScript</span>
             </div>
-            <pre className="text-sm text-gray-300 overflow-x-auto">
+            <pre className="text-sm text-secondary overflow-x-auto">
               <code>{`import { LazorkitProvider, useWallet } from '@lazorkit/wallet';
 
 function App() {
@@ -247,6 +247,11 @@ function YourApp() {
             </pre>
           </div>
         </div>
+      </section>
+
+      {/* Subscription Use Case Section */}
+      <section id="subscription" className="min-h-screen flex items-center justify-center px-4 py-20" data-testid="subscription-section">
+        <SubscriptionDemo />
       </section>
 
       {/* Wallet Section */}
