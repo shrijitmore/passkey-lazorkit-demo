@@ -3,11 +3,14 @@
 import { useWallet } from '@lazorkit/wallet';
 import GlitchText from '@/app/components/GlitchText';
 import WalletPanelEnhanced from '@/app/components/WalletPanelEnhanced';
+import SubscriptionDemo from '@/app/components/SubscriptionDemo';
+import { useTheme } from '@/app/contexts/ThemeContext';
 
 export default function Home() {
   const { isConnected } = useWallet();
+  const { theme, toggleTheme } = useTheme();
 
-  const scrollToSection = (section: 'home' | 'wallet' | 'features') => {
+  const scrollToSection = (section: 'home' | 'wallet' | 'features' | 'subscription') => {
     const element = document.getElementById(section);
     element?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -15,11 +18,11 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass-strong border-b border-white/10" data-testid="main-nav">
+      <nav className="fixed top-0 left-0 right-0 z-50 glass-strong border-b border-primary/10" data-testid="main-nav">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 gradient-purple-pink rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
@@ -30,24 +33,51 @@ export default function Home() {
             <div className="hidden md:flex items-center gap-6">
               <button
                 onClick={() => scrollToSection('home')}
-                className="text-gray-300 hover:text-white transition-colors"
+                className="text-secondary hover:text-primary-text transition-colors"
                 data-testid="nav-home"
               >
                 Home
               </button>
               <button
                 onClick={() => scrollToSection('features')}
-                className="text-gray-300 hover:text-white transition-colors"
+                className="text-secondary hover:text-primary-text transition-colors"
                 data-testid="nav-features"
               >
                 Features
               </button>
               <button
+                onClick={() => scrollToSection('subscription')}
+                className="text-secondary hover:text-primary-text transition-colors"
+                data-testid="nav-subscription"
+              >
+                Use Cases
+              </button>
+              <button
                 onClick={() => scrollToSection('wallet')}
-                className="px-4 py-2 gradient-purple-pink text-white rounded-lg font-semibold hover:opacity-90 transition-all"
+                className="px-4 py-2 gradient-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all"
                 data-testid="nav-wallet"
               >
                 {isConnected ? 'Wallet' : 'Connect'}
+              </button>
+              
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="theme-toggle"
+                data-testid="theme-toggle"
+                aria-label="Toggle theme"
+              >
+                <div className={`theme-toggle-slider ${theme === 'light' ? 'active' : ''}`}>
+                  {theme === 'dark' ? (
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  )}
+                </div>
               </button>
             </div>
           </div>
