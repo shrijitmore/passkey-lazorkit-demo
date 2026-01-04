@@ -29,12 +29,7 @@ export default function DashboardPage() {
       const connection = new Connection(RPC_URL, 'confirmed');
       const balance = await connection.getBalance(smartWalletPubkey);
       const balanceInSol = balance / LAMPORTS_PER_SOL;
-      setBalance(prev => {
-        if (prev === null) return balanceInSol;
-        const prevRounded = Math.round(prev * 10000) / 10000;
-        const newRounded = Math.round(balanceInSol * 10000) / 10000;
-        return prevRounded === newRounded ? prev : balanceInSol;
-      });
+      setBalance(balanceInSol);
     } catch (err) {
       // Silently handle balance fetch errors
     } finally {
@@ -43,30 +38,28 @@ export default function DashboardPage() {
   }, [smartWalletPubkey]);
 
   useEffect(() => {
-    const pubkeyString = smartWalletPubkey?.toString() || null;
-    const pubkeyChanged = prevPubkeyRef.current !== pubkeyString;
-
-    if (pubkeyChanged) {
-      prevPubkeyRef.current = pubkeyString;
-      if (isConnected && smartWalletPubkey) {
-        fetchBalance();
-        const interval = setInterval(() => {
-          fetchBalance();
-        }, 30000);
-        return () => clearInterval(interval);
-      } else {
-        setBalance(null);
-      }
+    if (!isConnected || !smartWalletPubkey) {
+      setBalance(null);
+      return;
     }
-  }, [isConnected, smartWalletPubkey, fetchBalance]);
 
-  useEffect(() => {
-    if (isConnected && smartWalletPubkey) {
-      const unsubscribe = listenWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, () => {
-        fetchBalance();
-      });
-      return unsubscribe;
-    }
+    // Initial fetch
+    fetchBalance();
+
+    // Set up polling interval
+    const interval = setInterval(() => {
+      fetchBalance();
+    }, 30000);
+
+    // Listen for transaction events
+    const unsubscribe = listenWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, () => {
+      fetchBalance();
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [isConnected, smartWalletPubkey, fetchBalance]);
 
   useEffect(() => {
