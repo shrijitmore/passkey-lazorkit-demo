@@ -1,6 +1,6 @@
 # LazorKit Integration Guide
 
-A comprehensive, step-by-step guide to integrating LazorKit SDK into your Next.js application for passwordless passkey authentication and gasless Solana transactions.
+A comprehensive, step-by-step guide to integrating LazorKit SDK into your Next.js application for passwordless passkey authentication and smart wallet transactions.
 
 ## Table of Contents
 
@@ -45,13 +45,15 @@ When prompted, select:
 npm install @lazorkit/wallet @solana/web3.js
 ```
 
-### Step 3: Install Optional Dependencies
+### Step 3: Install Optional Dependencies (Optional)
 
-For enhanced passkey functionality:
+**Note**: The LazorKit SDK handles passkey functionality internally. The following packages are only needed if you want to implement custom WebAuthn flows:
 
 ```bash
 npm install @simplewebauthn/browser @simplewebauthn/types
 ```
+
+For most use cases, you don't need these packages as LazorKit SDK provides all passkey functionality out of the box.
 
 ---
 
@@ -90,6 +92,7 @@ export default function LazorkitProviderWrapper({
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
+      passkey={true} // Enable passkey authentication
     >
       {children}
     </LazorkitProvider>
@@ -100,17 +103,67 @@ export default function LazorkitProviderWrapper({
 **Key Points:**
 - `RPC_URL`: Solana RPC endpoint (use Devnet for testing)
 - `PORTAL_URL`: LazorKit's portal service for passkey management
-- `paymasterConfig`: Enables gasless transactions
+- `paymasterConfig`: Paymaster configuration (may sponsor fees for certain transaction types)
 - `useMemo`: Prevents unnecessary re-renders
 
-### Step 2: Update Root Layout
+### Step 2: Create Providers Wrapper (Optional but Recommended)
+
+For better organization, especially if you have multiple providers (like theme providers), create a `Providers.tsx` component:
+
+```tsx
+// app/components/Providers.tsx
+'use client';
+
+import { ReactNode } from 'react';
+import LazorkitProviderWrapper from './LazorkitProviderWrapper';
+import { ThemeProvider } from '../contexts/ThemeContext'; // If you have a theme provider
+
+export default function Providers({ children }: { children: ReactNode }) {
+  return (
+    <ThemeProvider>
+      <LazorkitProviderWrapper>
+        {children}
+      </LazorkitProviderWrapper>
+    </ThemeProvider>
+  );
+}
+```
+
+**Note**: In this demo, `Providers.tsx` includes both `ThemeProvider` and `LazorkitProviderWrapper`. If you don't need a theme provider, you can use `LazorkitProviderWrapper` directly.
+
+**Note**: If you only need LazorKit, you can skip this step and use `LazorkitProviderWrapper` directly in the layout.
+
+### Step 3: Update Root Layout
 
 Update `app/layout.tsx`:
 
 ```tsx
 import type { ReactNode } from 'react';
-import LazorkitProviderWrapper from './components/LazorkitProviderWrapper';
+import Providers from './components/Providers';
 import './globals.css';
+
+export const metadata = {
+  title: 'LazorKit Demo - Passkey Authentication & Smart Wallet',
+  description: 'Experience the future of Solana UX with passkey authentication',
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+**Alternative (Direct Usage)**: If you don't need a Providers wrapper, you can use `LazorkitProviderWrapper` directly:
+
+```tsx
+import LazorkitProviderWrapper from './components/LazorkitProviderWrapper';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -159,7 +212,7 @@ portalUrl: 'https://portal.lazor.sh'
 
 #### Paymaster Configuration
 
-Enables gasless transactions:
+Paymaster can sponsor transaction fees for certain transaction types:
 
 ```typescript
 paymasterConfig: {
@@ -168,10 +221,10 @@ paymasterConfig: {
 ```
 
 **How it works:**
-- Paymaster signs transactions
-- Covers SOL transaction fees
-- Users don't need SOL for gas
-- Great for onboarding new users
+- Paymaster can sponsor fees for token transfers and other operations
+- **Note**: Native SOL transfers typically use wallet-paid fees (realistic production behavior)
+- Paymaster configuration is included but may not apply to all transaction types
+- For native SOL transfers, users pay fees from their wallet balance
 
 ### Environment Variables (Optional)
 
@@ -197,7 +250,7 @@ const PAYMASTER_URL = process.env.NEXT_PUBLIC_PAYMASTER_URL!;
 
 ### Step 1: Create Wallet Component
 
-Create `app/components/WalletPanel.tsx`:
+Create `app/components/WalletPanelEnhanced.tsx` (or a simpler `WalletPanel.tsx`):
 
 ```tsx
 'use client';
@@ -212,7 +265,7 @@ import {
 
 const RPC_URL = 'https://api.devnet.solana.com';
 
-export default function WalletPanel() {
+export default function WalletPanelEnhanced() {
   const {
     smartWalletPubkey,    // User's wallet address
     isConnected,           // Connection status
@@ -277,7 +330,7 @@ export default function WalletPanel() {
 1. **useWallet Hook**: Provides all wallet functionality
 2. **smartWalletPubkey**: The user's Solana wallet address
 3. **connect()**: Triggers passkey authentication
-4. **signAndSendTransaction()**: Sends gasless transactions
+4. **signAndSendTransaction()**: Sends transactions with passkey signing
 
 ### Step 2: Implementing Transactions
 
@@ -298,10 +351,11 @@ const handleTransfer = async (recipient: string, amount: number) => {
       lamports: amountLamports,
     });
 
-    // Send transaction (gasless!)
-    const signature = await signAndSendTransaction({
-      instructions: [instruction],
-    });
+      // Send transaction (signed with passkey)
+      // Note: For native SOL transfers, fees are paid from wallet balance
+      const signature = await signAndSendTransaction({
+        instructions: [instruction],
+      });
 
     console.log('Transaction successful:', signature);
   } catch (err) {
@@ -311,9 +365,10 @@ const handleTransfer = async (recipient: string, amount: number) => {
 ```
 
 **Important Notes:**
-- No need to request user approval for gas fees
-- Paymaster automatically covers transaction costs
-- User only needs to approve the transaction via passkey
+- User approves transaction via passkey (biometric authentication)
+- For native SOL transfers, transaction fees are paid from wallet balance
+- Paymaster may sponsor fees for other transaction types (token transfers, etc.)
+- This reflects realistic production behavior where native SOL transfers use wallet-paid fees
 
 ---
 
@@ -357,7 +412,9 @@ Open [http://localhost:3000](http://localhost:3000)
 2. Enter amount (e.g., 0.1 SOL)
 3. Click "Send"
 4. Approve with passkey
-5. Transaction sent gasless!
+5. Transaction sent successfully! (Fees paid from wallet balance for native SOL transfers)
+
+**Note:** If you see an iframe security warning (`allow-scripts and allow-same-origin`), this is a browser security notice from `portal.lazor.sh` and can be safely ignored. This is common in wallet SDKs and does not affect functionality.
 
 ---
 

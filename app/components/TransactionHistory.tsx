@@ -14,15 +14,16 @@ interface Transaction {
 }
 
 interface TransactionHistoryProps {
-  refreshTrigger?: number; // Increment this to trigger a refresh
+  refreshTrigger?: number;
 }
 
 export default function TransactionHistory({ refreshTrigger }: TransactionHistoryProps = {}) {
   const { smartWalletPubkey, isConnected } = useWallet();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const hasFetchedRef = useRef(false); // Cache: only fetch once per wallet connection
+  const hasFetchedRef = useRef(false);
   const lastRefreshTriggerRef = useRef<number | undefined>(undefined);
+  const lastPubkeyRef = useRef<string | null>(null);
 
   const fetchTransactions = useCallback(async () => {
     if (!smartWalletPubkey) return;
@@ -48,22 +49,31 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
   }, [smartWalletPubkey]);
 
   useEffect(() => {
+    const pubkeyString = smartWalletPubkey?.toString() || null;
+    const pubkeyChanged = lastPubkeyRef.current !== pubkeyString;
+    
     if (isConnected && smartWalletPubkey) {
-      // Fetch if first time OR if refreshTrigger changed
-      const shouldRefresh = !hasFetchedRef.current || 
+      // Fetch if first time, pubkey changed, OR if refreshTrigger changed
+      const shouldRefresh = !hasFetchedRef.current || pubkeyChanged ||
         (refreshTrigger !== undefined && refreshTrigger !== lastRefreshTriggerRef.current);
       
       if (shouldRefresh) {
         fetchTransactions();
         hasFetchedRef.current = true;
         lastRefreshTriggerRef.current = refreshTrigger;
+        lastPubkeyRef.current = pubkeyString;
       }
     } else {
+      // Only update if we have transactions to clear (prevent unnecessary re-renders)
+      if (transactions.length > 0) {
       setTransactions([]);
+      }
       hasFetchedRef.current = false; // Reset when disconnected
       lastRefreshTriggerRef.current = undefined;
+      lastPubkeyRef.current = null;
     }
-  }, [isConnected, smartWalletPubkey, refreshTrigger, fetchTransactions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, smartWalletPubkey, refreshTrigger]); // Removed fetchTransactions from deps to prevent loops
 
   if (!isConnected) return null;
 

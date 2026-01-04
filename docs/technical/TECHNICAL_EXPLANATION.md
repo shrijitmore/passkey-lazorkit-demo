@@ -42,7 +42,7 @@ LazorKit is a **Passkey-native Solana wallet SDK** that replaces seed phrases wi
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │  Paymaster Service (kora.devnet.lazorkit.com)        │  │
 │  │  - Pays transaction fees on behalf of users           │  │
-│  │  - Enables gasless transactions                       │  │
+│  │  - Paymaster configuration (may sponsor fees)        │  │
 │  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -56,7 +56,7 @@ LazorKit is a **Passkey-native Solana wallet SDK** that replaces seed phrases wi
 **How it works**:
 - Wraps your app with React Context
 - Initializes connection to LazorKit Portal
-- Configures Paymaster for gasless transactions
+- Configures Paymaster (may sponsor fees for certain transaction types)
 - Sets up RPC connection to Solana
 
 **Configuration** (from [Provider API](https://docs.lazorkit.com/react-sdk/provider)):
@@ -64,7 +64,7 @@ LazorKit is a **Passkey-native Solana wallet SDK** that replaces seed phrases wi
 <LazorkitProvider
   rpcUrl="https://api.devnet.solana.com"        // Required: Solana RPC endpoint
   portalUrl="https://portal.lazor.sh"          // Optional: Default portal
-  paymasterConfig={{                           // Optional: Gasless transactions
+  paymasterConfig={{                           // Optional: Paymaster config (native SOL uses wallet-paid fees)
     paymasterUrl: "https://kora.devnet.lazorkit.com"
   }}
 >
@@ -210,24 +210,30 @@ Program Derived Addresses (PDAs) are addresses derived from a program ID and see
 
 **Reference**: [Solana PDAs](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses)
 
-## Paymaster Service
+## Transaction Fees & Paymaster Service
 
-### How Gasless Transactions Work
+### Native SOL Transfers (This Demo)
 
-The Paymaster service enables gas sponsorship (from [LazorKit docs](https://docs.lazorkit.com/#paymaster)):
+This demo uses **wallet-paid transactions** for native SOL transfers:
 
 1. User creates transaction instruction
 2. User signs with passkey (biometric prompt)
-3. Transaction sent to Paymaster service
-4. Paymaster pays the transaction fees
-5. Transaction submitted to Solana network
-6. User receives transaction signature
+3. Transaction fees are paid from wallet balance
+4. Transaction submitted to Solana network
+5. User receives transaction signature
 
 **Key Points**:
-- Users don't need SOL for gas fees
-- Transactions are still signed by user's passkey
-- Paymaster pays fees on behalf of users
-- Enables true gasless transactions
+- Transactions are signed by user's passkey (biometric authentication)
+- Transaction fees are paid from wallet balance
+- This reflects realistic production behavior for native SOL transfers
+
+### About Paymaster
+
+The Paymaster service can enable gas sponsorship for certain transaction types (from [LazorKit docs](https://docs.lazorkit.com/#paymaster)):
+
+- Paymaster may sponsor token transfers or other operations
+- Native SOL transfers typically require wallet-paid fees due to paymaster policies
+- Paymaster configuration is included but may not apply to all transaction types
 
 **Configuration**:
 ```typescript
@@ -259,7 +265,7 @@ According to the [connect API](https://docs.lazorkit.com/react-sdk/use-wallet#co
 3. **Disconnect**: Clears session from storage
 4. **Cross-Device**: Works if passkey is synced
 
-**Reference**: [Session Persistence Tutorial](./tutorial-3-session-persistence.md)
+**Reference**: [Session Persistence Tutorial](../tutorials/tutorial-3-session-persistence.md)
 
 ## Transaction Flow
 
@@ -276,14 +282,16 @@ According to the [connect API](https://docs.lazorkit.com/react-sdk/use-wallet#co
    ↓
 5. Passkey signs transaction in Secure Enclave
    ↓
-6. Transaction sent to Paymaster service
+6. Transaction fees paid from wallet balance (native SOL transfers)
    ↓
-7. Paymaster pays fees and submits to Solana
+7. Transaction submitted to Solana network
    ↓
 8. Transaction confirmed on-chain
    ↓
 9. Returns transaction signature
 ```
+
+**Note**: For native SOL transfers, fees are paid by the wallet. Paymaster may sponsor other transaction types.
 
 **Key Differences from Traditional Wallets**:
 - ❌ Traditional: Create Transaction → Sign with keypair → Send → Pay fees
