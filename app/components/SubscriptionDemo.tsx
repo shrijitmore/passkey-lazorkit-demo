@@ -259,14 +259,14 @@ export default function SubscriptionDemo() {
       </div>
 
       {/* How It Works */}
-      <Card className="mt-12">
+      <Card className="mt-8 sm:mt-12">
         <CardHeader>
-          <CardTitle className="bg-gradient-to-r from-cyan-500 to-purple-600 bg-clip-text text-2xl font-bold text-transparent">
+          <CardTitle className="bg-gradient-to-r from-cyan-500 to-purple-600 bg-clip-text text-xl sm:text-2xl font-bold text-transparent">
             How Subscription Billing Works
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
             {[
               {
                 step: '1',
@@ -284,24 +284,24 @@ export default function SubscriptionDemo() {
                 description: 'Payments happen automatically each month. No manual approval needed!',
               },
             ].map((item, index) => (
-              <div key={index} className="flex gap-4" data-testid={`how-it-works-${index}`}>
+              <div key={index} className="flex gap-3 sm:gap-4" data-testid={`how-it-works-${index}`}>
                 <div className="flex shrink-0">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 text-lg font-bold text-white shadow-md">
+                  <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 text-base sm:text-lg font-bold text-white shadow-md">
                     {item.step}
                   </div>
                 </div>
                 <div>
-                  <h4 className="mb-2 font-semibold text-foreground">{item.title}</h4>
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                  <h4 className="mb-1 sm:mb-2 text-sm sm:text-base font-semibold text-foreground">{item.title}</h4>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{item.description}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 rounded-lg border border-primary/20 bg-muted/50 p-4">
-            <div className="flex items-start gap-3">
+          <div className="mt-6 sm:mt-8 rounded-lg border border-primary/20 bg-muted/50 p-3 sm:p-4">
+            <div className="flex items-start gap-2 sm:gap-3">
               <svg
-                className="mt-0.5 h-6 w-6 shrink-0 text-primary"
+                className="mt-0.5 h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-primary"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -314,8 +314,8 @@ export default function SubscriptionDemo() {
                 />
               </svg>
               <div>
-                <p className="mb-1 font-semibold text-foreground">Production Implementation</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="mb-1 text-sm sm:text-base font-semibold text-foreground">Production Implementation</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   This is a demo UI. For production, you'd integrate with Solana programs (like Clockwork or Streamflow) for automated recurring payments. The passkey authentication remains the same!
                 </p>
               </div>
