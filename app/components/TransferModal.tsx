@@ -154,19 +154,19 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" data-testid="transfer-modal">
-      <div className="glass-strong rounded-2xl p-6 max-w-md w-full relative animate-scale-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm" data-testid="transfer-modal">
+      <div className="glass-strong rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-md w-full relative animate-scale-in max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-400 hover:text-white transition-colors z-10"
           data-testid="close-modal-btn"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
-        <h2 className="text-2xl font-bold mb-6 gradient-text">Send SOL</h2>
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 gradient-text pr-8">Send SOL</h2>
         
         <form onSubmit={handleTransfer} className="space-y-4">
           <div>
