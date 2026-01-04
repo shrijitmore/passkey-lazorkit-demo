@@ -352,12 +352,7 @@ const handleTransfer = async (recipient: string, amount: number) => {
     });
 
       // Send transaction (signed with passkey)
-      // IMPORTANT: Use wallet-paid transaction only (no paymaster flags)
-      // - Paymasters typically reject native SOL transfers (policy-level)
-      // - Wallet-paid transactions avoid simulation failures (0x2 errors)
-      // - This reflects production-accurate behavior
-      // DO NOT pass paymaster, skipPaymaster, or custom flags
-      // DO NOT retry manually - let LazorKit handle it
+      // Note: For native SOL transfers, fees are paid from wallet balance
       const signature = await signAndSendTransaction({
         instructions: [instruction],
       });
@@ -448,57 +443,6 @@ vercel
 
 ### Common Issues
 
-#### Error 0x2: "Transaction simulation failed" or "custom program error: 0x2"
-
-**What it means:**
-In LazorKit + smart wallet flows, error 0x2 typically indicates one of these issues:
-
-1. **Paymaster rejection** (most common):
-   - Paymasters reject native SOL transfers at policy level
-   - Transaction is routed through paymaster but gets rejected
-   - This is expected behavior, not a bug
-
-2. **Smart wallet config state issue**:
-   - Wallet config update loop corrupted internal state
-   - Wallet appears connected but execution fails
-   - Requires wallet reconnect to fix
-
-3. **Transaction size/compute issues**:
-   - Paymaster adds extra instructions
-   - Retry logic inflates transaction size
-   - Transaction exceeds limits
-
-**Solutions (try in order):**
-
-1. **Disconnect and reconnect wallet** - Resets smart wallet state (most common fix)
-2. **Clear browser storage** - Application → Storage → Clear site data, then reload
-3. **Use fresh browser profile/incognito** - Resets all cached state
-4. **Check balance** - Ensure sufficient SOL for transaction + fees (~0.001 SOL)
-5. **Wait and retry** - Network congestion can cause temporary failures
-
-**Important Notes:**
-- This demo uses wallet-paid transactions (not gasless) for native SOL transfers
-- This is production-accurate behavior and avoids paymaster-related failures
-- Error 0x2 is typically a paymaster/wallet state issue, not insufficient funds
-- DO NOT pass paymaster flags or retry manually - let LazorKit handle it
-
-**Code Pattern (Correct):**
-```typescript
-// ✅ Correct: Simple wallet-paid transaction
-const signature = await signAndSendTransaction({
-  instructions: [instruction],
-});
-
-// ❌ Wrong: Don't pass paymaster flags
-const signature = await signAndSendTransaction({
-  instructions: [instruction],
-  paymaster: false, // Don't do this
-  skipPaymaster: true, // Don't do this
-});
-```
-
-#### Other Common Issues
-
 #### 1. "Passkey not supported"
 
 **Solution**: Ensure you're using HTTPS and a supported browser:
@@ -529,59 +473,13 @@ const handleConnect = async () => {
 };
 ```
 
-#### 3. "Transaction failed" or "Error 0x2"
+#### 3. "Transaction failed"
 
-**What it means:**
-In LazorKit + smart wallet flows, error 0x2 typically indicates one of these issues:
-
-1. **Paymaster rejection** (most common):
-   - Paymasters reject native SOL transfers at policy level
-   - Transaction is routed through paymaster but gets rejected
-   - This is expected behavior, not a bug
-
-2. **Smart wallet config state issue**:
-   - Wallet config update loop corrupted internal state
-   - Wallet appears connected but execution fails
-   - Requires wallet reconnect to fix
-
-3. **Transaction size/compute issues**:
-   - Paymaster adds extra instructions
-   - Retry logic inflates transaction size
-   - Transaction exceeds limits
-
-**Solutions (try in order):**
-
-1. **Disconnect and reconnect wallet** - Resets smart wallet state (most common fix)
-2. **Clear browser storage** - Application → Storage → Clear site data, then reload
-3. **Use fresh browser profile/incognito** - Resets all cached state
-4. **Check balance** - Ensure sufficient SOL for transaction + fees (~0.001 SOL)
-5. **Wait and retry** - Network congestion can cause temporary failures
-
-**Important Notes:**
-- This demo uses wallet-paid transactions (not gasless) for native SOL transfers
-- This is production-accurate behavior and avoids paymaster-related failures
-- Error 0x2 is typically a paymaster/wallet state issue, not insufficient funds
-- DO NOT pass paymaster flags or retry manually - let LazorKit handle it
-
-**Code Pattern (Correct):**
-```typescript
-// ✅ Correct: Simple wallet-paid transaction
-const signature = await signAndSendTransaction({
-  instructions: [instruction],
-});
-
-// ❌ Wrong: Don't pass paymaster flags
-const signature = await signAndSendTransaction({
-  instructions: [instruction],
-  paymaster: false, // Don't do this
-  skipPaymaster: true, // Don't do this
-});
-```
-
-**Other checks:**
+**Check:**
 - Sufficient balance
 - Valid recipient address
 - RPC connection status
+- Paymaster availability
 
 #### 4. "Localhost not working"
 

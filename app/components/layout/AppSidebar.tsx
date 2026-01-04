@@ -7,24 +7,12 @@ import { cn } from '@/lib/utils';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 
-interface AppSidebarProps {
-  onNavigate?: () => void; // Callback to close mobile menu after navigation
-}
-
-/**
- * Navigation item interface
- * Defines structure for sidebar menu items
- */
 interface NavItem {
   title: string;
   href: string;
   icon: React.ReactNode;
 }
 
-/**
- * Sidebar navigation items
- * All main pages of the application
- */
 const navItems: NavItem[] = [
   { title: 'Dashboard', href: '/', icon: <LayoutDashboard className="h-5 w-5" /> },
   { title: 'Wallet', href: '/wallet', icon: <Wallet className="h-5 w-5" /> },
@@ -32,51 +20,16 @@ const navItems: NavItem[] = [
   { title: 'Profile', href: '/profile', icon: <User className="h-5 w-5" /> },
 ];
 
-/**
- * Application sidebar component
- * 
- * Features:
- * - Navigation menu with active state highlighting
- * - User wallet information display
- * - Logout functionality
- * - Responsive design (works in mobile drawer and desktop sidebar)
- * 
- * @param onNavigate - Optional callback to close mobile menu after navigation
- */
-export default function AppSidebar({ onNavigate }: AppSidebarProps) {
+export default function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { disconnect, smartWalletPubkey, isConnected } = useWallet();
 
-  /**
-   * Handle navigation to a page
-   * Closes mobile menu if callback is provided
-   */
-  const handleNavigation = (href: string) => {
-    router.push(href);
-    // Close mobile menu after navigation
-    if (onNavigate) {
-      onNavigate();
-    }
-  };
-
-  /**
-   * Handle user logout
-   * Disconnects wallet and redirects to home page
-   */
   const handleLogout = () => {
     disconnect();
     router.push('/');
-    // Close mobile menu after logout
-    if (onNavigate) {
-      onNavigate();
-    }
   };
 
-  /**
-   * Generate user initials from wallet address
-   * Uses first 2 characters of wallet address
-   */
   const getUserInitials = () => {
     if (smartWalletPubkey) {
       return smartWalletPubkey.toString().substring(0, 2).toUpperCase();
@@ -85,11 +38,10 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
   };
 
   return (
-    <div className="flex h-screen w-64 shrink-0 flex-col border-r border-border bg-card relative z-0">
-      {/* Logo Section */}
+    <div className="flex h-screen w-64 shrink-0 flex-col border-r border-border bg-card">
+      {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-border px-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-cyan-500 to-purple-600">
-          {/* Passkey/Key icon */}
           <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
@@ -102,27 +54,21 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
         <span className="text-lg font-semibold text-foreground">LazorKit</span>
       </div>
 
-      {/* Navigation Menu */}
+      {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {navItems.map((item) => {
-          // Check if current page matches this nav item
           const isActive = pathname === item.href;
-          
           return (
             <button
               key={item.href}
-              onClick={() => handleNavigation(item.href)}
+              onClick={() => router.push(item.href)}
               className={cn(
-                // Base styles
                 'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                // Active state: gradient background and foreground color
                 isActive
                   ? 'bg-gradient-to-r from-cyan-500/20 to-purple-600/20 text-foreground shadow-sm'
-                  : // Inactive state: muted text with hover effect
-                    'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )}
             >
-              {/* Icon with active state color */}
               <span className={cn(isActive && 'text-cyan-400')}>{item.icon}</span>
               <span>{item.title}</span>
             </button>
@@ -130,9 +76,8 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
         })}
       </nav>
 
-      {/* User Section - Wallet Info and Logout */}
+      {/* User Section */}
       <div className="border-t border-border p-4">
-        {/* Wallet Address Display - Only show if connected */}
         {isConnected && smartWalletPubkey && (
           <div className="mb-4 flex items-center gap-3">
             <Avatar className="h-10 w-10">
@@ -141,7 +86,6 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              {/* Truncated wallet address */}
               <p className="truncate text-sm font-medium text-foreground">
                 {smartWalletPubkey.toString().substring(0, 4)}...
                 {smartWalletPubkey.toString().slice(-4)}
@@ -150,10 +94,7 @@ export default function AppSidebar({ onNavigate }: AppSidebarProps) {
             </div>
           </div>
         )}
-        
         <Separator className="my-4" />
-        
-        {/* Logout Button */}
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-accent-foreground"

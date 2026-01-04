@@ -12,54 +12,23 @@ import TransactionHistory from './components/TransactionHistory';
 import { getSubscriptions } from './lib/subscription/storage';
 import { WALLET_EVENTS, listenWalletEvent } from './lib/events/walletEvents';
 
-// Configuration constants
 const RPC_URL = 'https://api.devnet.solana.com';
-const BALANCE_POLL_INTERVAL = 30000; // 30 seconds
 
-/**
- * Dashboard Page Component
- * 
- * Main landing page showing:
- * - Wallet connection prompt (if not connected)
- * - Balance overview
- * - Subscription statistics
- * - Quick action cards
- * - Recent transaction history
- * 
- * Mobile Optimizations:
- * - Responsive grid layouts
- * - Touch-friendly buttons
- * - Mobile-optimized card layouts
- * - Responsive typography
- */
 export default function DashboardPage() {
   const { isConnected, smartWalletPubkey, connect, isConnecting } = useWallet();
   const router = useRouter();
   const [balance, setBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [subscriptionCount, setSubscriptionCount] = useState(0);
-  // Ref to track previous pubkey to prevent unnecessary re-renders
   const prevPubkeyRef = useRef<string | null>(null);
 
-  /**
-   * Fetch wallet balance from Solana blockchain
-   * 
-   * Optimizations:
-   * - Only updates state if balance actually changed (rounded to 4 decimals)
-   * - Prevents unnecessary re-renders
-   * - Handles errors gracefully
-   */
   const fetchBalance = useCallback(async () => {
     if (!smartWalletPubkey) return;
-    
     setIsLoadingBalance(true);
     try {
       const connection = new Connection(RPC_URL, 'confirmed');
       const balance = await connection.getBalance(smartWalletPubkey);
       const balanceInSol = balance / LAMPORTS_PER_SOL;
-      
-      // Only update state if balance actually changed (rounded to 4 decimals)
-      // This prevents unnecessary re-renders
       setBalance(prev => {
         if (prev === null) return balanceInSol;
         const prevRounded = Math.round(prev * 10000) / 10000;
@@ -67,84 +36,48 @@ export default function DashboardPage() {
         return prevRounded === newRounded ? prev : balanceInSol;
       });
     } catch (err) {
-      // Silently handle balance fetch errors (network issues, etc.)
-      console.error('Balance fetch error:', err);
+      // Silently handle balance fetch errors
     } finally {
       setIsLoadingBalance(false);
     }
   }, [smartWalletPubkey]);
 
-  /**
-   * Effect: Set up balance polling when wallet connects
-   * 
-   * - Fetches balance immediately on connect
-   * - Sets up polling interval (30 seconds)
-   * - Clears balance when wallet disconnects
-   * - Only runs when pubkey actually changes (optimization)
-   */
   useEffect(() => {
     const pubkeyString = smartWalletPubkey?.toString() || null;
     const pubkeyChanged = prevPubkeyRef.current !== pubkeyString;
 
     if (pubkeyChanged) {
       prevPubkeyRef.current = pubkeyString;
-      
       if (isConnected && smartWalletPubkey) {
-        // Fetch balance immediately
         fetchBalance();
-        
-        // Set up polling interval for automatic balance updates
         const interval = setInterval(() => {
           fetchBalance();
-        }, BALANCE_POLL_INTERVAL);
-        
-        // Cleanup: clear interval on unmount or disconnect
+        }, 30000);
         return () => clearInterval(interval);
       } else {
-        // Clear balance when wallet disconnects
         setBalance(null);
       }
     }
   }, [isConnected, smartWalletPubkey, fetchBalance]);
 
-  /**
-   * Effect: Listen for transaction completion events
-   * 
-   * - Automatically refreshes balance after transactions
-   * - Real-time updates without polling delay
-   * - Cleans up event listener on unmount
-   */
   useEffect(() => {
     if (isConnected && smartWalletPubkey) {
       const unsubscribe = listenWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, () => {
-        // Refresh balance immediately after transaction
         fetchBalance();
       });
       return unsubscribe;
     }
   }, [isConnected, smartWalletPubkey, fetchBalance]);
 
-  /**
-   * Effect: Update subscription count when wallet connects/disconnects
-   * 
-   * - Counts active subscriptions from localStorage
-   * - Updates count when wallet state changes
-   */
   useEffect(() => {
     if (isConnected && smartWalletPubkey) {
       const subs = getSubscriptions(smartWalletPubkey.toString());
-      // Count only active subscriptions
       setSubscriptionCount(subs.filter(s => s.status === 'active').length);
     } else {
       setSubscriptionCount(0);
     }
   }, [isConnected, smartWalletPubkey]);
 
-  /**
-   * Handle wallet connection
-   * 
-   * Validates WebAuthn support and HTTPS before connecting
-   */
   const handleConnect = async () => {
     if (typeof window === 'undefined' || !window.PublicKeyCredential) {
       alert('WebAuthn is not supported in this browser. Please use a modern browser.');

@@ -415,39 +415,6 @@ export default function TransactionExample() {
 
 **Note:** This is a known Solana constraint and not an application bug. The transaction is still signed with passkeys and executed via smart wallet.
 
-### Issue: "Error 0x2" or "custom program error: 0x2"
-**What it means:** Transaction simulation failed with error code 0x2.
-
-**Why it happens:**
-In LazorKit + smart wallet flows, error 0x2 typically means one of these:
-
-1. **Paymaster rejection** (most common):
-   - Paymasters reject native SOL transfers at policy level
-   - Transaction is routed through paymaster but gets rejected
-   - This is expected behavior, not a bug
-
-2. **Smart wallet config state issue**:
-   - Wallet config update loop corrupted internal state
-   - Wallet appears connected but execution fails
-   - Requires wallet reconnect to fix
-
-3. **Transaction size/compute issues**:
-   - Paymaster adds extra instructions
-   - Retry logic inflates transaction size
-   - Transaction exceeds limits
-
-**Solutions (try in order):**
-1. **Disconnect and reconnect wallet** - Resets smart wallet state (most common fix)
-2. **Clear browser storage** - Application → Storage → Clear site data, then reload
-3. **Use fresh browser profile/incognito** - Resets all cached state
-4. **Check balance** - Ensure sufficient SOL for transaction + fees (~0.001 SOL)
-5. **Wait and retry** - Network congestion can cause temporary failures
-
-**Important:** 
-- This demo uses wallet-paid transactions (not gasless) for native SOL transfers
-- This is production-accurate behavior and avoids paymaster-related failures
-- Error 0x2 is typically a paymaster/wallet state issue, not insufficient funds
-
 ## Key Takeaways
 
 - ✅ LazorKit handles signing and fee payment automatically

@@ -126,28 +126,6 @@ const { connect, smartWalletPubkey, signAndSendTransaction } = useWallet();
 
 This demo uses **wallet-paid transactions** for native SOL transfers, reflecting realistic production behavior. Transactions are signed with passkeys (biometric authentication) and fees are paid from the wallet balance.
 
-**Note on Gasless Transactions:**
-
-LazorKit supports gasless transactions via a paymaster for supported token transfers (e.g., USDC). However, **this demo does NOT use paymaster configuration** to avoid Error 0x2 issues with native SOL transfers.
-
-**Why we removed paymaster:**
-- When `paymasterConfig` is set in the provider, LazorKit SDK automatically routes ALL transactions through the paymaster pipeline
-- Paymasters reject native SOL transfers at policy level (expected behavior)
-- This causes Error 0x2 (transaction simulation failed)
-- Removing paymasterConfig ensures all transactions are wallet-paid, avoiding these errors
-
-**If you need paymaster for token transfers:**
-- Uncomment `paymasterConfig` in `LazorkitProviderWrapper.tsx`
-- Native SOL transfers will get 0x2 errors (expected - paymaster doesn't sponsor SOL)
-- Users will need to disconnect/reconnect wallet to reset state when errors occur
-
-This demo demonstrates:
-- ✅ Passkey-based signing
-- ✅ Smart wallet execution  
-- ✅ Wallet-paid SOL transactions (production-accurate)
-- ✅ On-chain transaction verification
-- ✅ No paymaster-related errors
-
 For detailed information, see the [Transactions Tutorial](./docs/tutorials/tutorial-2-transactions.md).
 
 ### ⚠️ Known Limitation: Small SOL Transfers

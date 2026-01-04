@@ -95,12 +95,6 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
         throw new Error('Signing function not available');
       }
       
-      // IMPORTANT: Use wallet-paid transaction only (no paymaster flags)
-      // - Paymasters typically reject native SOL transfers (policy-level)
-      // - Wallet-paid transactions avoid simulation failures (0x2 errors)
-      // - This reflects production-accurate behavior
-      // DO NOT pass paymaster, skipPaymaster, or custom flags
-      // DO NOT retry manually - let LazorKit handle it
       setTxStatus('signing');
       const signature = await signAndSendTransaction({
         instructions: [instruction],
@@ -144,7 +138,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       } else if (errorObj?.message?.includes('User cancelled') || errorObj?.message?.includes('canceled')) {
         errorMessage = 'You canceled the authentication. Please try again and approve the biometric prompt.';
       } else if (errorObj?.message?.includes('custom program error: 0x2') || errorObj?.message?.includes('InsufficientFunds') || errorObj?.message?.includes('insufficient funds')) {
-        errorMessage = '❌ Transaction Failed (Error 0x2)\n\n🔍 What\'s happening:\nThe LazorKit SDK is routing your transaction through the paymaster, but paymasters reject native SOL transfers at policy level. This is expected behavior, not a bug.\n\n✅ FIX (Do this now):\n\n1. DISCONNECT your wallet (click Log Out in sidebar)\n2. CLEAR browser storage:\n   • Press F12 (open DevTools)\n   • Go to "Application" tab\n   • Click "Storage" → "Clear site data"\n   • Or: Right-click page → "Inspect" → "Application" → "Clear storage"\n3. RELOAD the page (F5 or Ctrl+R)\n4. RECONNECT your wallet with passkey\n5. Try sending again\n\n💡 Why this works:\nThis resets the corrupted smart wallet config state that\'s causing the paymaster to reject your transaction.\n\n📝 Note: This demo uses wallet-paid transactions (not gasless) for native SOL transfers, which is production-accurate behavior.';
+        errorMessage = 'Insufficient funds error (0x2).\n\nThis usually means:\n• Smart wallet may not be initialized yet\n• Balance might be locked or reserved\n• Transaction needs more SOL than available (including fees)\n\nTry:\n• Verify balance on Solana Explorer\n• Try sending a smaller amount (0.01 SOL)\n• Make sure you funded the correct wallet address\n• The smart wallet might need initialization - try disconnecting and reconnecting';
       } else if (errorObj?.message?.includes('simulation failed') || errorObj?.message?.includes('Transaction simulation')) {
         errorMessage = 'Transaction simulation failed.\n\nThis means the transaction would fail on-chain.\n\nCommon causes:\n• Insufficient balance (including fees)\n• Invalid recipient address\n• Network issues\n\nTry:\n• Check your balance\n• Verify the recipient address is valid\n• Try a smaller amount\n• Wait a moment and try again';
       } else if (errorObj?.message?.includes('Transaction too large') || errorObj?.message?.includes('too large')) {

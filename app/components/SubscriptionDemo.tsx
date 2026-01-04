@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import { SystemProgram, PublicKey, LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
 import { Check, Loader2 } from 'lucide-react';
@@ -12,17 +12,13 @@ import { generateSubscriptionId, calculateNextBillingDate } from '../lib/subscri
 import type { Subscription, SubscriptionPlanId } from '../lib/subscription/types';
 import { WALLET_EVENTS, dispatchWalletEvent } from '../lib/events/walletEvents';
 
-/**
- * Subscription plan interface
- * Defines structure for subscription plans
- */
 interface SubscriptionPlan {
   id: string;
   name: string;
-  price: number; // Price in SOL
-  interval: string; // Billing interval (e.g., 'month')
-  features: string[]; // List of features included
-  popular?: boolean; // Whether this plan is marked as popular
+  price: number;
+  interval: string;
+  features: string[];
+  popular?: boolean;
 }
 
 const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
@@ -67,69 +63,18 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
 ];
 
-// Configuration constants
-const MERCHANT_WALLET = new PublicKey('9T2zGaNBr7bKBBEvQ9AAGNwCG3iL4jVF2Z8TipqikpKG'); // Merchant wallet address - receives subscription payments
+// Merchant wallet address - receives subscription payments
+const MERCHANT_WALLET = new PublicKey('9T2zGaNBr7bKBBEvQ9AAGNwCG3iL4jVF2Z8TipqikpKG');
 const RPC_URL = 'https://api.devnet.solana.com';
 
-/**
- * Subscription Demo Component
- * 
- * Features:
- * - Display subscription plans
- * - Handle subscription creation with passkey authentication
- * - Real-time transaction updates
- * - Error handling and success messages
- * 
- * Mobile Optimizations:
- * - Responsive card grid layout
- * - Mobile-friendly button sizes
- * - Touch-optimized interactions
- * - Responsive typography
- */
 export default function SubscriptionDemo() {
   const { isConnected, smartWalletPubkey, signAndSendTransaction } = useWallet();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [balance, setBalance] = useState<number | null>(null);
 
-  /**
-   * Fetch wallet balance
-   * Used to check if user has sufficient funds before subscribing
-   */
-  const fetchBalance = async () => {
-    if (!smartWalletPubkey) return;
-    try {
-      const connection = new Connection(RPC_URL, 'confirmed');
-      const balance = await connection.getBalance(smartWalletPubkey);
-      setBalance(balance / LAMPORTS_PER_SOL);
-    } catch (err) {
-      console.error('Balance fetch error:', err);
-    }
-  };
-
-  /**
-   * Handle subscription creation
-   * 
-   * Process:
-   * 1. Validate wallet connection
-   * 2. Check wallet balance (sufficient funds)
-   * 3. Check for existing active subscription
-   * 4. Create transfer instruction to merchant wallet
-   * 5. Sign transaction with passkey
-   * 6. Confirm transaction on blockchain
-   * 7. Save subscription to localStorage
-   * 8. Dispatch events for UI updates
-   * 
-   * Error Handling:
-   * - Validates wallet connection
-   * - Checks sufficient balance (including fees)
-   * - Prevents duplicate subscriptions
-   * - Handles transaction failures gracefully with user-friendly messages
-   */
   const handleSubscribe = async (planId: string) => {
-    // Validate wallet is connected
     if (!isConnected || !smartWalletPubkey || !signAndSendTransaction) {
       setError('Please connect your wallet first');
       return;
@@ -157,31 +102,6 @@ export default function SubscriptionDemo() {
         throw new Error('Invalid plan selected');
       }
 
-      // Fetch current balance (fresh fetch, not relying on state)
-      const balanceConnection = new Connection(RPC_URL, 'confirmed');
-      const currentBalanceLamports = await balanceConnection.getBalance(smartWalletPubkey);
-      const currentBalance = currentBalanceLamports / LAMPORTS_PER_SOL;
-      setBalance(currentBalance);
-      
-      // Check if user has sufficient balance
-      // Smart wallets need some SOL for rent exemption (~0.00089 SOL) + transaction fees (~0.000005 SOL)
-      const rentExemption = 0.00089; // Minimum rent exemption for accounts
-      const estimatedFee = 0.000005; // Estimated transaction fee
-      const requiredAmount = plan.price + rentExemption + estimatedFee;
-      
-      if (currentBalance < requiredAmount) {
-        throw new Error(
-          `Insufficient balance. You need ${requiredAmount.toFixed(4)} SOL (${plan.price.toFixed(4)} SOL for subscription + ${rentExemption.toFixed(4)} SOL for rent + ~${estimatedFee.toFixed(6)} SOL for fees), but you have ${currentBalance.toFixed(4)} SOL. Please add more SOL to your wallet.`
-        );
-      }
-      
-      // Additional check: ensure wallet has minimum balance for smart wallet operations
-      if (currentBalance < 0.001) {
-        throw new Error(
-          `Wallet balance too low. Smart wallets need at least 0.001 SOL for operations. You have ${currentBalance.toFixed(4)} SOL. Please add more SOL to your wallet.`
-        );
-      }
-
       // Create transaction instruction for subscription payment
       const instruction = SystemProgram.transfer({
         fromPubkey: smartWalletPubkey,
@@ -190,12 +110,6 @@ export default function SubscriptionDemo() {
       });
 
       // Sign and send transaction with passkey
-      // IMPORTANT: Use wallet-paid transaction only (no paymaster flags)
-      // - Paymasters typically reject native SOL transfers (policy-level)
-      // - Wallet-paid transactions avoid simulation failures (0x2 errors)
-      // - This reflects production-accurate behavior
-      // DO NOT pass paymaster, skipPaymaster, or custom flags
-      // DO NOT retry manually - let LazorKit handle it
       const txSignature = await signAndSendTransaction({
         instructions: [instruction],
       });
@@ -252,63 +166,18 @@ export default function SubscriptionDemo() {
       }, 5000);
     } catch (err: unknown) {
       const errorObj = err as { message?: string };
-      let errorMessage = 'Subscription failed. Please try again.';
-      
-      // Handle specific error cases with user-friendly messages
-      if (errorObj?.message) {
-        if (errorObj.message.includes('0x2') || errorObj.message.includes('custom program error: 0x2') || errorObj.message.includes('InsufficientFunds') || errorObj.message.includes('insufficient funds')) {
-          // Error 0x2 in LazorKit context usually means:
-          // 1. Paymaster rejected the transaction (native SOL transfers not sponsored)
-          // 2. Smart wallet config state issue (needs reconnect)
-          // 3. Transaction size/compute issues
-          const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
-          const planName = plan?.name || 'the selected plan';
-          const planPrice = plan?.price || 0;
-          
-          errorMessage = `❌ Transaction Failed (Error 0x2)\n\n🔍 What's happening:\nThe LazorKit SDK is routing your transaction through the paymaster, but paymasters reject native SOL transfers at policy level. This is expected behavior, not a bug.\n\nYour balance: ${balance !== null ? balance.toFixed(4) : 'checking...'} SOL\nPlan cost: ${planPrice} SOL + ~0.001 SOL fees\n\n✅ FIX (Do this now):\n\n1. DISCONNECT your wallet (click Log Out in sidebar)\n2. CLEAR browser storage:\n   • Press F12 (open DevTools)\n   • Go to "Application" tab\n   • Click "Storage" → "Clear site data"\n   • Or: Right-click page → "Inspect" → "Application" → "Clear storage"\n3. RELOAD the page (F5 or Ctrl+R)\n4. RECONNECT your wallet with passkey\n5. Try subscribing again\n\n💡 Why this works:\nThis resets the corrupted smart wallet config state that's causing the paymaster to reject your transaction.\n\n📝 Note: This demo uses wallet-paid transactions (not gasless) for native SOL transfers, which is production-accurate behavior.`;
-        } else if (errorObj.message.includes('Insufficient balance') || errorObj.message.includes('balance too low')) {
-          errorMessage = errorObj.message;
-        } else if (errorObj.message.includes('Transaction simulation failed') || errorObj.message.includes('Paymaster') || errorObj.message.includes('[Paymaster]')) {
-          const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
-          errorMessage = `❌ Transaction Simulation Failed\n\n🔍 What's happening:\nThe paymaster is rejecting your native SOL transfer (policy-level rejection). This happens because LazorKit SDK routes transactions through paymaster internally, but paymasters don't sponsor native SOL transfers.\n\nYour balance: ${balance !== null ? balance.toFixed(4) : 'checking...'} SOL\nPlan cost: ${plan?.price || 'plan price'} SOL + ~0.001 SOL fees\n\n✅ FIX (Do this now):\n\n1. DISCONNECT wallet (Log Out in sidebar)\n2. CLEAR browser storage (F12 → Application → Clear site data)\n3. RELOAD page (F5)\n4. RECONNECT wallet with passkey\n5. Try again\n\n💡 This resets the corrupted smart wallet state causing the paymaster rejection.`;
-        } else {
-          errorMessage = errorObj.message;
-        }
-      }
-      
-      setError(errorMessage);
+      setError(errorObj?.message || 'Subscription failed. Please try again.');
       console.error('Subscription error:', err);
     } finally {
       setIsSubscribing(false);
     }
   };
 
-  // Fetch balance when wallet connects
-  useEffect(() => {
-    if (isConnected && smartWalletPubkey) {
-      fetchBalance();
-    } else {
-      setBalance(null);
-    }
-  }, [isConnected, smartWalletPubkey]);
-
   return (
     <div className="w-full" data-testid="subscription-demo">
       {error && (
         <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-          <p className="whitespace-pre-line text-sm text-destructive">{error}</p>
-          {(error.includes('0x2') || error.includes('Paymaster') || error.includes('simulation failed') || error.includes('[Paymaster]')) && (
-            <div className="mt-4 rounded-md border border-yellow-500/50 bg-yellow-500/10 p-3">
-              <p className="text-xs font-semibold text-yellow-400">⚡ Quick Fix Guide:</p>
-              <ol className="mt-2 list-decimal list-inside space-y-1 text-xs text-yellow-300">
-                <li>Disconnect wallet (Log Out in sidebar)</li>
-                <li>Press F12 → Application tab → Clear site data</li>
-                <li>Reload page (F5)</li>
-                <li>Reconnect wallet</li>
-                <li>Try subscribing again</li>
-              </ol>
-            </div>
-          )}
+          <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
 

@@ -12,28 +12,9 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { WALLET_EVENTS, listenWalletEvent, dispatchWalletEvent } from '../lib/events/walletEvents';
 
-// Configuration constants
 const RPC_URL = 'https://api.devnet.solana.com';
 const EXPLORER_URL = 'https://explorer.solana.com';
-const BALANCE_POLL_INTERVAL = 30000; // 30 seconds - balance refresh interval
 
-/**
- * Wallet Page Component
- * 
- * Features:
- * - Send SOL transactions with passkey authentication
- * - Receive SOL with QR code
- * - Verify wallet ownership with message signing
- * - Real-time balance updates
- * - Transaction history integration
- * - Fully responsive mobile design
- * 
- * Mobile Optimizations:
- * - Responsive tabs layout
- * - Mobile-friendly QR code size
- * - Touch-optimized buttons
- * - Responsive card layouts
- */
 export default function WalletPage() {
   const { smartWalletPubkey, isConnected, signAndSendTransaction, signMessage } = useWallet();
   const [balance, setBalance] = useState<number | null>(null);
@@ -49,28 +30,15 @@ export default function WalletPage() {
   const [signature, setSignature] = useState<string | null>(null);
   const [signError, setSignError] = useState<string | null>(null);
 
-  // Ref to track previous pubkey to prevent unnecessary re-renders
   const prevPubkeyRef = useRef<string | null>(null);
 
-  /**
-   * Fetch wallet balance from Solana blockchain
-   * 
-   * Optimizations:
-   * - Only updates state if balance actually changed (rounded to 4 decimals)
-   * - Prevents unnecessary re-renders
-   * - Handles errors gracefully
-   */
   const fetchBalance = useCallback(async () => {
     if (!smartWalletPubkey) return;
-    
     setIsLoadingBalance(true);
     try {
       const connection = new Connection(RPC_URL, 'confirmed');
       const balance = await connection.getBalance(smartWalletPubkey);
       const balanceInSol = balance / LAMPORTS_PER_SOL;
-      
-      // Only update state if balance actually changed (rounded to 4 decimals)
-      // This prevents unnecessary re-renders
       setBalance(prev => {
         if (prev === null) return balanceInSol;
         const prevRounded = Math.round(prev * 10000) / 10000;
@@ -78,98 +46,51 @@ export default function WalletPage() {
         return prevRounded === newRounded ? prev : balanceInSol;
       });
     } catch (err) {
-      // Silently handle balance fetch errors (network issues, etc.)
-      console.error('Balance fetch error:', err);
+      // Silently handle balance fetch errors
     } finally {
       setIsLoadingBalance(false);
     }
   }, [smartWalletPubkey]);
 
-  /**
-   * Effect: Set up balance polling when wallet connects
-   * 
-   * - Fetches balance immediately on connect
-   * - Sets up polling interval (30 seconds)
-   * - Clears balance when wallet disconnects
-   * - Only runs when pubkey actually changes (optimization)
-   */
   useEffect(() => {
     const pubkeyString = smartWalletPubkey?.toString() || null;
     const pubkeyChanged = prevPubkeyRef.current !== pubkeyString;
 
     if (pubkeyChanged) {
       prevPubkeyRef.current = pubkeyString;
-      
       if (isConnected && smartWalletPubkey) {
-        // Fetch balance immediately
         fetchBalance();
-        
-        // Set up polling interval for automatic balance updates
         const interval = setInterval(() => {
           fetchBalance();
-        }, BALANCE_POLL_INTERVAL);
-        
-        // Cleanup: clear interval on unmount or disconnect
+        }, 30000);
         return () => clearInterval(interval);
       } else {
-        // Clear balance when wallet disconnects
         setBalance(null);
       }
     }
   }, [isConnected, smartWalletPubkey, fetchBalance]);
 
-  /**
-   * Effect: Listen for transaction completion events
-   * 
-   * - Automatically refreshes balance after transactions
-   * - Real-time updates without polling delay
-   * - Cleans up event listener on unmount
-   */
   useEffect(() => {
     if (!isConnected || !smartWalletPubkey) return;
 
     const unsubscribe = listenWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, () => {
-      // Refresh balance immediately after transaction
       fetchBalance();
     });
 
-    // Cleanup: remove event listener
     return unsubscribe;
   }, [isConnected, smartWalletPubkey, fetchBalance]);
 
-  /**
-   * Copy wallet address to clipboard
-   * Shows success feedback for 2 seconds
-   */
   const handleCopy = async () => {
     if (!smartWalletPubkey) return;
     try {
       await navigator.clipboard.writeText(smartWalletPubkey.toString());
       setCopied(true);
-      // Reset copied state after 2 seconds
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      // Silently handle copy errors (clipboard API not available, etc.)
-      console.error('Copy error:', err);
+      // Silently handle copy errors
     }
   };
 
-  /**
-   * Handle SOL transfer transaction
-   * 
-   * Process:
-   * 1. Validate inputs (recipient address, amount)
-   * 2. Create transfer instruction
-   * 3. Sign with passkey (biometric authentication)
-   * 4. Send transaction to blockchain
-   * 5. Wait for confirmation
-   * 6. Dispatch events for UI updates
-   * 
-   * Error Handling:
-   * - Validates recipient address format
-   * - Checks sufficient balance
-   * - Handles transaction failures gracefully
-   */
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!smartWalletPubkey || !signAndSendTransaction) {
@@ -230,30 +151,13 @@ export default function WalletPage() {
     }
   };
 
-  /**
-   * Handle message signing for wallet verification
-   * 
-   * Process:
-   * 1. Validate message input
-   * 2. Sign message with passkey (biometric authentication)
-   * 3. Display signature for verification
-   * 
-   * Benefits:
-   * - No transaction fees (off-chain signing)
-   * - No transaction size limits
-   * - Proves wallet ownership without spending SOL
-   * - Useful for authentication/verification flows
-   */
   const handleSignMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate signMessage function is available
     if (!signMessage) {
       setSignError('Sign message not available');
       return;
     }
 
-    // Validate message is not empty
     if (!messageToSign.trim()) {
       setSignError('Please enter a message to sign');
       return;
@@ -264,12 +168,10 @@ export default function WalletPage() {
     setSignature(null);
 
     try {
-      // Sign message with passkey (triggers biometric prompt)
       const result = await signMessage(messageToSign);
       setSignature(result.signature);
       setSignStatus('success');
       
-      // Clear form after 5 seconds
       setTimeout(() => {
         setMessageToSign('');
         setSignStatus('idle');
@@ -334,21 +236,20 @@ export default function WalletPage() {
         </CardHeader>
       </Card>
 
-      {/* Send/Receive/Verify Tabs - Responsive layout */}
+      {/* Send/Receive/Verify Tabs */}
       <Tabs defaultValue="send" className="w-full">
-        {/* Tab Navigation - Responsive grid (3 columns on mobile, adapts to screen size) */}
         <TabsList className="grid w-full grid-cols-3 bg-muted">
-          <TabsTrigger value="send" className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background">
+          <TabsTrigger value="send" className="flex items-center gap-2 data-[state=active]:bg-background">
             <Send className="h-4 w-4" />
-            <span className="hidden xs:inline">Send</span>
+            Send
           </TabsTrigger>
-          <TabsTrigger value="receive" className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background">
+          <TabsTrigger value="receive" className="flex items-center gap-2 data-[state=active]:bg-background">
             <Download className="h-4 w-4" />
-            <span className="hidden xs:inline">Receive</span>
+            Receive
           </TabsTrigger>
-          <TabsTrigger value="verify" className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background">
+          <TabsTrigger value="verify" className="flex items-center gap-2 data-[state=active]:bg-background">
             <Shield className="h-4 w-4" />
-            <span className="hidden xs:inline">Verify</span>
+            Verify
           </TabsTrigger>
         </TabsList>
 
@@ -459,21 +360,20 @@ export default function WalletPage() {
               <CardDescription>Share this address to receive SOL</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* QR Code - Responsive size for mobile */}
+              {/* QR Code */}
               <div className="flex justify-center">
-                <div className="rounded-lg bg-white p-3 sm:p-4 shadow-md">
+                <div className="rounded-lg bg-white p-4 shadow-md">
                   {walletAddress ? (
                     <QRCodeSVG
                       value={walletAddress}
-                      size={200} // Smaller on mobile, scales up on larger screens
-                      level="H" // High error correction for better scanning
+                      size={232}
+                      level="H"
                       includeMargin={false}
                       fgColor="#000000"
                       bgColor="#ffffff"
-                      className="sm:w-[232px] sm:h-[232px]"
                     />
                   ) : (
-                    <div className="flex h-[200px] w-[200px] sm:h-[232px] sm:w-[232px] items-center justify-center">
+                    <div className="flex h-[232px] w-[232px] items-center justify-center">
                       <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                     </div>
                   )}
