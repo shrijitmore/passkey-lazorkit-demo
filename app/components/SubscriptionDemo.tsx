@@ -174,16 +174,16 @@ export default function SubscriptionDemo() {
   };
 
   return (
-    <div className="w-full" data-testid="subscription-demo">
+    <div className="w-full px-4 sm:px-0" data-testid="subscription-demo">
       {error && (
-        <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="mb-4 sm:mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-destructive break-words">{error}</p>
         </div>
       )}
 
       {successMessage && (
-        <div className="mb-6 rounded-lg border border-green-500/50 bg-green-500/10 p-4">
-          <p className="text-sm text-green-400">{successMessage}</p>
+        <div className="mb-4 sm:mb-6 rounded-lg border border-green-500/50 bg-green-500/10 p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-green-400 break-words">{successMessage}</p>
           <a
             href="#subscriptions"
             className="mt-2 inline-block text-xs text-blue-400 underline hover:text-blue-300"
@@ -193,7 +193,7 @@ export default function SubscriptionDemo() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {SUBSCRIPTION_PLANS.map((plan) => (
           <Card
             key={plan.id}
