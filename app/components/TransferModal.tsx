@@ -168,9 +168,9 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
 
         <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 gradient-text pr-8">Send SOL</h2>
         
-        <form onSubmit={handleTransfer} className="space-y-4">
+        <form onSubmit={handleTransfer} className="space-y-3 sm:space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
               Recipient Address
             </label>
             <input
@@ -178,15 +178,15 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
               placeholder="Enter Solana address"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-purple-500 focus:outline-none text-white placeholder-gray-500"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base bg-white/5 border border-white/10 rounded-lg focus:border-purple-500 focus:outline-none text-white placeholder-gray-500"
               required
               data-testid="recipient-input"
             />
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-300">
+            <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300">
               Amount (SOL)
             </label>
               {balance !== null && (
@@ -203,22 +203,22 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.1"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:border-purple-500 focus:outline-none text-white placeholder-gray-500"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base bg-white/5 border border-white/10 rounded-lg focus:border-purple-500 focus:outline-none text-white placeholder-gray-500"
               required
               data-testid="amount-input"
             />
           </div>
 
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg" data-testid="transfer-error">
-              <p className="text-sm text-red-400 whitespace-pre-line">{error}</p>
+            <div className="p-2.5 sm:p-3 bg-red-500/10 border border-red-500/20 rounded-lg" data-testid="transfer-error">
+              <p className="text-xs sm:text-sm text-red-400 whitespace-pre-line break-words">{error}</p>
             </div>
           )}
 
           {/* Transaction info */}
-          <div className="glass rounded-lg p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm text-primary">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="glass rounded-lg p-3 sm:p-4 space-y-1.5 sm:space-y-2">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-primary">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
               <span className="font-semibold">Transaction</span>
