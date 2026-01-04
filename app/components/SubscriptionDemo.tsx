@@ -197,56 +197,56 @@ export default function SubscriptionDemo() {
         {SUBSCRIPTION_PLANS.map((plan) => (
           <Card
             key={plan.id}
-            className={`relative flex h-full min-h-[500px] flex-col overflow-hidden transition-all hover:shadow-lg ${
+            className={`relative flex h-full flex-col overflow-hidden transition-all hover:shadow-lg ${
               plan.popular
                 ? 'border-2 border-primary/50 bg-gradient-to-br from-card via-card to-card/80'
                 : 'border border-border'
             }`}
           >
-            <CardHeader className="pb-4 pt-6">
+            <CardHeader className="pb-3 sm:pb-4 pt-4 sm:pt-6">
               {plan.popular && (
-                <div className="mb-4 flex justify-center">
+                <div className="mb-3 sm:mb-4 flex justify-center">
                   <Badge
                     variant="default"
-                    className="bg-gradient-to-r from-cyan-500 to-purple-600 px-4 py-1 text-xs font-bold text-white shadow-md"
+                    className="bg-gradient-to-r from-cyan-500 to-purple-600 px-3 sm:px-4 py-1 text-xs font-bold text-white shadow-md"
                   >
                     MOST POPULAR
                   </Badge>
                 </div>
               )}
-              <CardTitle className="text-2xl font-bold text-foreground">{plan.name}</CardTitle>
-              <div className="mt-4 flex flex-wrap items-baseline gap-1">
-                <span className="bg-gradient-to-r from-cyan-500 to-purple-600 bg-clip-text text-3xl font-bold text-transparent md:text-4xl">
+              <CardTitle className="text-xl sm:text-2xl font-bold text-foreground">{plan.name}</CardTitle>
+              <div className="mt-3 sm:mt-4 flex flex-wrap items-baseline gap-1">
+                <span className="bg-gradient-to-r from-cyan-500 to-purple-600 bg-clip-text text-3xl sm:text-4xl font-bold text-transparent">
                   {plan.price}
                 </span>
-                <span className="text-base text-muted-foreground md:text-lg">SOL</span>
-                <span className="text-xs text-muted-foreground md:text-sm">/ {plan.interval}</span>
+                <span className="text-base sm:text-lg text-muted-foreground">SOL</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">/ {plan.interval}</span>
               </div>
             </CardHeader>
 
-            <CardContent className="flex flex-1 flex-col overflow-hidden">
-              <ul className="mb-6 flex-1 space-y-3 overflow-y-auto">
+            <CardContent className="flex flex-1 flex-col overflow-hidden px-4 sm:px-6">
+              <ul className="mb-4 sm:mb-6 flex-1 space-y-2 sm:space-y-3 overflow-y-auto">
                 {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-3 text-sm text-muted-foreground">
-                    <Check className="mt-0.5 h-5 w-5 shrink-0 text-cyan-400" />
+                  <li key={index} className="flex items-start gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
+                    <Check className="mt-0.5 h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-cyan-400" />
                     <span className="break-words">{feature}</span>
                   </li>
                 ))}
               </ul>
 
-              <div className="mt-auto pt-4">
+              <div className="mt-auto pt-3 sm:pt-4">
                 <Button
                   onClick={() => handleSubscribe(plan.id)}
                   disabled={!isConnected || isSubscribing}
                   variant={plan.popular ? 'gradient' : 'outline'}
                   size="lg"
-                  className="w-full"
+                  className="w-full text-sm sm:text-base py-3 sm:py-4"
                   data-testid={`subscribe-${plan.id}-btn`}
                 >
                   {isSubscribing && selectedPlan === plan.id ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Processing...
+                      <span className="ml-2">Processing...</span>
                     </>
                   ) : (
                     'Subscribe Now'
