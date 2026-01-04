@@ -20,7 +20,6 @@ export default function DashboardPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [subscriptionCount, setSubscriptionCount] = useState(0);
-  const prevPubkeyRef = useRef<string | null>(null);
 
   const fetchBalance = useCallback(async () => {
     if (!smartWalletPubkey) return;
