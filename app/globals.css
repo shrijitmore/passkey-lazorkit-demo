@@ -311,3 +311,245 @@ html {
   z-index: 1;
   transition: opacity 0.3s ease;
 }
+
+/* ===========================================
+   MOBILE & TABLET RESPONSIVE STYLES
+   =========================================== */
+
+/* Mobile-first approach: Base styles for mobile, then scale up */
+
+/* Touch-friendly tap targets (minimum 44x44px for iOS) */
+button, 
+.btn, 
+a[role="button"],
+input[type="checkbox"],
+input[type="radio"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent zoom on input focus (iOS) */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+/* Mobile: < 640px (iPhone SE to iPhone 14 Pro Max) */
+@media (max-width: 639px) {
+  /* Reduce padding/margins for mobile */
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Smaller headings on mobile */
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1.125rem; }
+
+  /* Full-width cards on mobile */
+  .glass,
+  .glass-strong,
+  .glass-dark {
+    border-radius: 12px;
+  }
+
+  /* Stack layouts vertically */
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Mobile modal adjustments */
+  .modal-content {
+    max-width: 95vw !important;
+    margin: 1rem;
+  }
+
+  /* Adjust text sizes in cards */
+  .card-title {
+    font-size: 1.25rem;
+  }
+
+  .card-description {
+    font-size: 0.875rem;
+  }
+
+  /* Button sizing for mobile */
+  button,
+  .btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+  }
+
+  /* Reduce glassmorphism blur on mobile (performance) */
+  .glass,
+  .glass-strong,
+  .glass-dark {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Input fields full width on mobile */
+  input,
+  textarea,
+  select {
+    width: 100%;
+  }
+
+  /* Wallet address truncation on mobile */
+  .wallet-address {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Small tablets: 640px - 767px (iPad Mini portrait) */
+@media (min-width: 640px) and (max-width: 767px) {
+  body {
+    font-size: 15px;
+  }
+
+  /* 2-column grid for tablets */
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Tablets: 768px - 1023px (iPad portrait/landscape) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  body {
+    font-size: 16px;
+  }
+
+  /* Comfortable padding for tablets */
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  /* 2-column layout for subscription cards */
+  .subscription-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* Large tablets/Small laptops: 1024px - 1279px (iPad Pro) */
+@media (min-width: 1024px) {
+  /* 3-column layout for desktop */
+  .subscription-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Landscape orientation optimizations */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Reduce vertical spacing in landscape */
+  .space-y-8 > * + * {
+    margin-top: 1rem !important;
+  }
+
+  .space-y-6 > * + * {
+    margin-top: 0.75rem !important;
+  }
+
+  /* Compact header in landscape */
+  header {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  /* Scroll modals in landscape */
+  .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
+/* High DPI displays (Retina) */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper borders */
+  .glass,
+  .glass-strong {
+    border-width: 0.5px;
+  }
+}
+
+/* Accessibility: Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode adjustments for mobile (battery saving) */
+@media (max-width: 639px) {
+  [data-theme="dark"] .glass,
+  [data-theme="dark"] .glass-strong {
+    background: rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* Safe area insets for notched devices (iPhone X and newer) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+
+  header,
+  footer {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Prevent text selection on buttons (better touch UX) */
+button,
+.btn {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling on mobile */
+@media (max-width: 1023px) {
+  html {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Mobile menu optimizations */
+.mobile-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: var(--background);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.mobile-menu.open {
+  transform: translateX(0);
+}
+
+/* Toast notifications positioning for mobile */
+@media (max-width: 639px) {
+  .toast-container {
+    bottom: env(safe-area-inset-bottom, 1rem);
+    left: 1rem;
+    right: 1rem;
+  }
+}
