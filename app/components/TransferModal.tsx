@@ -230,13 +230,13 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
 
           {/* Transaction status indicators */}
           {txStatus === 'signing' && (
-            <div className="glass rounded-lg p-4 border-2 border-yellow-500/30">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="glass rounded-lg p-3 sm:p-4 border-2 border-yellow-500/30">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 flex-shrink-0 mt-0.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 <div>
-                  <p className="text-sm font-semibold text-yellow-400 mb-1">Signing Transaction</p>
+                  <p className="text-xs sm:text-sm font-semibold text-yellow-400 mb-1">Signing Transaction</p>
                   <p className="text-xs text-gray-300">
                     A biometric prompt (Face ID, Touch ID, or Windows Hello) should appear. Please approve it to sign the transaction.
                   </p>
@@ -246,13 +246,13 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           )}
 
           {txStatus === 'confirming' && (
-            <div className="glass rounded-lg p-4 border-2 border-blue-500/30">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="glass rounded-lg p-3 sm:p-4 border-2 border-blue-500/30">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 flex-shrink-0 mt-0.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 <div>
-                  <p className="text-sm font-semibold text-blue-400 mb-1">Confirming Transaction</p>
+                  <p className="text-xs sm:text-sm font-semibold text-blue-400 mb-1">Confirming Transaction</p>
                   <p className="text-xs text-gray-300">
                     Waiting for on-chain confirmation. This usually takes a few seconds.
                   </p>
@@ -262,24 +262,24 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           )}
 
           {txStatus === 'success' && txSignature && (
-            <div className="glass rounded-lg p-4 border-2 border-green-500/30">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="glass rounded-lg p-3 sm:p-4 border-2 border-green-500/30">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-green-400 mb-2">Transaction Successful!</p>
-                  <p className="text-xs text-gray-300 mb-2">
+                  <p className="text-xs sm:text-sm font-semibold text-green-400 mb-1 sm:mb-2">Transaction Successful!</p>
+                  <p className="text-xs text-gray-300 mb-1.5 sm:mb-2">
                     Your transaction has been confirmed on-chain. Transaction fees were paid by your wallet.
                   </p>
                   <a
                     href={`${EXPLORER_BASE_URL}/${txSignature}?cluster=devnet`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                    className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1 break-all"
                   >
                     View on Solana Explorer
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                   </a>
@@ -291,7 +291,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           <button
             type="submit"
             disabled={txStatus !== 'idle' && txStatus !== 'error'}
-            className="w-full px-6 py-3 gradient-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
+            className="w-full px-4 sm:px-6 py-3 text-sm sm:text-base gradient-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
             data-testid="send-transfer-btn"
           >
             {txStatus === 'signing' && (
