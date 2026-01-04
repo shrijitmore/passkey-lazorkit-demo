@@ -43,7 +43,7 @@ When you call `connect()`, LazorKit:
 3. **If no session**: Prompts for passkey authentication
 4. **On success**: Creates/restores the smart wallet
 
-**Important**: Auto-reconnect only happens when you explicitly call `connect()`. If you want automatic reconnection on page load, you need to call `connect()` in a `useEffect` hook. The default `WalletPanel` component in this repository uses manual connection (user clicks button), but you can implement auto-reconnect as shown below.
+**Important**: Auto-reconnect only happens when you explicitly call `connect()`. If you want automatic reconnection on page load, you need to call `connect()` in a `useEffect` hook. The default `WalletPanelEnhanced` component in this repository uses manual connection (user clicks button), but you can implement auto-reconnect as shown below.
 
 Here's how to implement auto-reconnect in code:
 

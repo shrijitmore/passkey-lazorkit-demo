@@ -1,6 +1,6 @@
 # LazorKit Integration Guide
 
-A comprehensive, step-by-step guide to integrating LazorKit SDK into your Next.js application for passwordless passkey authentication and gasless Solana transactions.
+A comprehensive, step-by-step guide to integrating LazorKit SDK into your Next.js application for passwordless passkey authentication and smart wallet transactions.
 
 ## Table of Contents
 
@@ -45,13 +45,15 @@ When prompted, select:
 npm install @lazorkit/wallet @solana/web3.js
 ```
 
-### Step 3: Install Optional Dependencies
+### Step 3: Install Optional Dependencies (Optional)
 
-For enhanced passkey functionality:
+**Note**: The LazorKit SDK handles passkey functionality internally. The following packages are only needed if you want to implement custom WebAuthn flows:
 
 ```bash
 npm install @simplewebauthn/browser @simplewebauthn/types
 ```
+
+For most use cases, you don't need these packages as LazorKit SDK provides all passkey functionality out of the box.
 
 ---
 
@@ -90,6 +92,7 @@ export default function LazorkitProviderWrapper({
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
+      passkey={true} // Enable passkey authentication
     >
       {children}
     </LazorkitProvider>
@@ -100,17 +103,67 @@ export default function LazorkitProviderWrapper({
 **Key Points:**
 - `RPC_URL`: Solana RPC endpoint (use Devnet for testing)
 - `PORTAL_URL`: LazorKit's portal service for passkey management
-- `paymasterConfig`: Enables gasless transactions
+- `paymasterConfig`: Paymaster configuration (may sponsor fees for certain transaction types)
 - `useMemo`: Prevents unnecessary re-renders
 
-### Step 2: Update Root Layout
+### Step 2: Create Providers Wrapper (Optional but Recommended)
+
+For better organization, especially if you have multiple providers (like theme providers), create a `Providers.tsx` component:
+
+```tsx
+// app/components/Providers.tsx
+'use client';
+
+import { ReactNode } from 'react';
+import LazorkitProviderWrapper from './LazorkitProviderWrapper';
+import { ThemeProvider } from '../contexts/ThemeContext'; // If you have a theme provider
+
+export default function Providers({ children }: { children: ReactNode }) {
+  return (
+    <ThemeProvider>
+      <LazorkitProviderWrapper>
+        {children}
+      </LazorkitProviderWrapper>
+    </ThemeProvider>
+  );
+}
+```
+
+**Note**: In this demo, `Providers.tsx` includes both `ThemeProvider` and `LazorkitProviderWrapper`. If you don't need a theme provider, you can use `LazorkitProviderWrapper` directly.
+
+**Note**: If you only need LazorKit, you can skip this step and use `LazorkitProviderWrapper` directly in the layout.
+
+### Step 3: Update Root Layout
 
 Update `app/layout.tsx`:
 
 ```tsx
 import type { ReactNode } from 'react';
-import LazorkitProviderWrapper from './components/LazorkitProviderWrapper';
+import Providers from './components/Providers';
 import './globals.css';
+
+export const metadata = {
+  title: 'LazorKit Demo - Passkey Authentication & Smart Wallet',
+  description: 'Experience the future of Solana UX with passkey authentication',
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+**Alternative (Direct Usage)**: If you don't need a Providers wrapper, you can use `LazorkitProviderWrapper` directly:
+
+```tsx
+import LazorkitProviderWrapper from './components/LazorkitProviderWrapper';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -159,7 +212,7 @@ portalUrl: 'https://portal.lazor.sh'
 
 #### Paymaster Configuration
 
-Enables gasless transactions:
+Paymaster can sponsor transaction fees for certain transaction types:
 
 ```typescript
 paymasterConfig: {
@@ -168,10 +221,10 @@ paymasterConfig: {
 ```
 
 **How it works:**
-- Paymaster signs transactions
-- Covers SOL transaction fees
-- Users don't need SOL for gas
-- Great for onboarding new users
+- Paymaster can sponsor fees for token transfers and other operations
+- **Note**: Native SOL transfers typically use wallet-paid fees (realistic production behavior)
+- Paymaster configuration is included but may not apply to all transaction types
+- For native SOL transfers, users pay fees from their wallet balance
 
 ### Environment Variables (Optional)
 
@@ -197,7 +250,7 @@ const PAYMASTER_URL = process.env.NEXT_PUBLIC_PAYMASTER_URL!;
 
 ### Step 1: Create Wallet Component
 
-Create `app/components/WalletPanel.tsx`:
+Create `app/components/WalletPanelEnhanced.tsx` (or a simpler `WalletPanel.tsx`):
 
 ```tsx
 'use client';
@@ -212,7 +265,7 @@ import {
 
 const RPC_URL = 'https://api.devnet.solana.com';
 
-export default function WalletPanel() {
+export default function WalletPanelEnhanced() {
   const {
     smartWalletPubkey,    // User's wallet address
     isConnected,           // Connection status
@@ -277,7 +330,7 @@ export default function WalletPanel() {
 1. **useWallet Hook**: Provides all wallet functionality
 2. **smartWalletPubkey**: The user's Solana wallet address
 3. **connect()**: Triggers passkey authentication
-4. **signAndSendTransaction()**: Sends gasless transactions
+4. **signAndSendTransaction()**: Sends transactions with passkey signing
 
 ### Step 2: Implementing Transactions
 
@@ -298,10 +351,16 @@ const handleTransfer = async (recipient: string, amount: number) => {
       lamports: amountLamports,
     });
 
-    // Send transaction (gasless!)
-    const signature = await signAndSendTransaction({
-      instructions: [instruction],
-    });
+      // Send transaction (signed with passkey)
+      // IMPORTANT: Use wallet-paid transaction only (no paymaster flags)
+      // - Paymasters typically reject native SOL transfers (policy-level)
+      // - Wallet-paid transactions avoid simulation failures (0x2 errors)
+      // - This reflects production-accurate behavior
+      // DO NOT pass paymaster, skipPaymaster, or custom flags
+      // DO NOT retry manually - let LazorKit handle it
+      const signature = await signAndSendTransaction({
+        instructions: [instruction],
+      });
 
     console.log('Transaction successful:', signature);
   } catch (err) {
@@ -311,9 +370,10 @@ const handleTransfer = async (recipient: string, amount: number) => {
 ```
 
 **Important Notes:**
-- No need to request user approval for gas fees
-- Paymaster automatically covers transaction costs
-- User only needs to approve the transaction via passkey
+- User approves transaction via passkey (biometric authentication)
+- For native SOL transfers, transaction fees are paid from wallet balance
+- Paymaster may sponsor fees for other transaction types (token transfers, etc.)
+- This reflects realistic production behavior where native SOL transfers use wallet-paid fees
 
 ---
 
@@ -357,7 +417,9 @@ Open [http://localhost:3000](http://localhost:3000)
 2. Enter amount (e.g., 0.1 SOL)
 3. Click "Send"
 4. Approve with passkey
-5. Transaction sent gasless!
+5. Transaction sent successfully! (Fees paid from wallet balance for native SOL transfers)
+
+**Note:** If you see an iframe security warning (`allow-scripts and allow-same-origin`), this is a browser security notice from `portal.lazor.sh` and can be safely ignored. This is common in wallet SDKs and does not affect functionality.
 
 ---
 
@@ -385,6 +447,57 @@ vercel
 ## Troubleshooting
 
 ### Common Issues
+
+#### Error 0x2: "Transaction simulation failed" or "custom program error: 0x2"
+
+**What it means:**
+In LazorKit + smart wallet flows, error 0x2 typically indicates one of these issues:
+
+1. **Paymaster rejection** (most common):
+   - Paymasters reject native SOL transfers at policy level
+   - Transaction is routed through paymaster but gets rejected
+   - This is expected behavior, not a bug
+
+2. **Smart wallet config state issue**:
+   - Wallet config update loop corrupted internal state
+   - Wallet appears connected but execution fails
+   - Requires wallet reconnect to fix
+
+3. **Transaction size/compute issues**:
+   - Paymaster adds extra instructions
+   - Retry logic inflates transaction size
+   - Transaction exceeds limits
+
+**Solutions (try in order):**
+
+1. **Disconnect and reconnect wallet** - Resets smart wallet state (most common fix)
+2. **Clear browser storage** - Application → Storage → Clear site data, then reload
+3. **Use fresh browser profile/incognito** - Resets all cached state
+4. **Check balance** - Ensure sufficient SOL for transaction + fees (~0.001 SOL)
+5. **Wait and retry** - Network congestion can cause temporary failures
+
+**Important Notes:**
+- This demo uses wallet-paid transactions (not gasless) for native SOL transfers
+- This is production-accurate behavior and avoids paymaster-related failures
+- Error 0x2 is typically a paymaster/wallet state issue, not insufficient funds
+- DO NOT pass paymaster flags or retry manually - let LazorKit handle it
+
+**Code Pattern (Correct):**
+```typescript
+// ✅ Correct: Simple wallet-paid transaction
+const signature = await signAndSendTransaction({
+  instructions: [instruction],
+});
+
+// ❌ Wrong: Don't pass paymaster flags
+const signature = await signAndSendTransaction({
+  instructions: [instruction],
+  paymaster: false, // Don't do this
+  skipPaymaster: true, // Don't do this
+});
+```
+
+#### Other Common Issues
 
 #### 1. "Passkey not supported"
 
@@ -416,13 +529,59 @@ const handleConnect = async () => {
 };
 ```
 
-#### 3. "Transaction failed"
+#### 3. "Transaction failed" or "Error 0x2"
 
-**Check:**
+**What it means:**
+In LazorKit + smart wallet flows, error 0x2 typically indicates one of these issues:
+
+1. **Paymaster rejection** (most common):
+   - Paymasters reject native SOL transfers at policy level
+   - Transaction is routed through paymaster but gets rejected
+   - This is expected behavior, not a bug
+
+2. **Smart wallet config state issue**:
+   - Wallet config update loop corrupted internal state
+   - Wallet appears connected but execution fails
+   - Requires wallet reconnect to fix
+
+3. **Transaction size/compute issues**:
+   - Paymaster adds extra instructions
+   - Retry logic inflates transaction size
+   - Transaction exceeds limits
+
+**Solutions (try in order):**
+
+1. **Disconnect and reconnect wallet** - Resets smart wallet state (most common fix)
+2. **Clear browser storage** - Application → Storage → Clear site data, then reload
+3. **Use fresh browser profile/incognito** - Resets all cached state
+4. **Check balance** - Ensure sufficient SOL for transaction + fees (~0.001 SOL)
+5. **Wait and retry** - Network congestion can cause temporary failures
+
+**Important Notes:**
+- This demo uses wallet-paid transactions (not gasless) for native SOL transfers
+- This is production-accurate behavior and avoids paymaster-related failures
+- Error 0x2 is typically a paymaster/wallet state issue, not insufficient funds
+- DO NOT pass paymaster flags or retry manually - let LazorKit handle it
+
+**Code Pattern (Correct):**
+```typescript
+// ✅ Correct: Simple wallet-paid transaction
+const signature = await signAndSendTransaction({
+  instructions: [instruction],
+});
+
+// ❌ Wrong: Don't pass paymaster flags
+const signature = await signAndSendTransaction({
+  instructions: [instruction],
+  paymaster: false, // Don't do this
+  skipPaymaster: true, // Don't do this
+});
+```
+
+**Other checks:**
 - Sufficient balance
 - Valid recipient address
 - RPC connection status
-- Paymaster availability
 
 #### 4. "Localhost not working"
 

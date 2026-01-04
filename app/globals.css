@@ -5,20 +5,33 @@
   --background: #0a0a0f;
   --foreground: #ededed;
   --primary: #06b6d4;
+  --primary-foreground: #ffffff;
   --primary-rgb: 6, 182, 212;
   --secondary: #a855f7;
+  --secondary-foreground: #ffffff;
   --secondary-rgb: 168, 85, 247;
   --accent: #ec4899;
+  --accent-foreground: #ffffff;
   --accent-rgb: 236, 72, 153;
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: #a0a0a0;
+  --card: rgba(255, 255, 255, 0.05);
+  --card-foreground: #ededed;
+  --popover: rgba(255, 255, 255, 0.05);
+  --popover-foreground: #ededed;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #06b6d4;
   --surface: rgba(255, 255, 255, 0.05);
   --surface-strong: rgba(255, 255, 255, 0.08);
   --surface-dark: rgba(10, 10, 15, 0.7);
-  --border: rgba(255, 255, 255, 0.1);
   --text-primary: #ffffff;
   --text-secondary: #a0a0a0;
   --gradient-start: #06b6d4;
   --gradient-mid: #a855f7;
   --gradient-end: #ec4899;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
 }
 
 /* Light Theme Colors */
@@ -26,25 +39,55 @@
   --background: #f8fafc;
   --foreground: #1e293b;
   --primary: #0891b2;
+  --primary-foreground: #ffffff;
   --primary-rgb: 8, 145, 178;
   --secondary: #9333ea;
+  --secondary-foreground: #ffffff;
   --secondary-rgb: 147, 51, 234;
   --accent: #db2777;
+  --accent-foreground: #ffffff;
   --accent-rgb: 219, 39, 119;
+  --muted: rgba(0, 0, 0, 0.05);
+  --muted-foreground: #64748b;
+  --card: #ffffff;
+  --card-foreground: #1e293b;
+  --popover: #ffffff;
+  --popover-foreground: #1e293b;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: rgba(0, 0, 0, 0.1);
+  --ring: #0891b2;
   --surface: rgba(255, 255, 255, 0.8);
   --surface-strong: rgba(255, 255, 255, 0.95);
   --surface-dark: rgba(248, 250, 252, 0.9);
-  --border: rgba(0, 0, 0, 0.1);
   --text-primary: #1e293b;
   --text-secondary: #64748b;
   --gradient-start: #0891b2;
   --gradient-mid: #9333ea;
   --gradient-end: #db2777;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 body {
@@ -53,6 +96,34 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
   min-height: 100vh;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Ensure mobile navbar is fully opaque (not transparent) */
+@media (max-width: 1023px) {
+  header.sticky,
+  header[class*="sticky"],
+  header[class*="z-30"] {
+    background-color: var(--background) !important;
+    opacity: 1 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* Dark mode specific - ensure fully opaque with explicit color */
+  [data-theme="dark"] header.sticky,
+  [data-theme="dark"] header[class*="sticky"],
+  [data-theme="dark"] header[class*="z-30"] {
+    background-color: #0a0a0f !important;
+    opacity: 1 !important;
+  }
+  
+  /* Light mode specific - ensure fully opaque with explicit color */
+  [data-theme="light"] header.sticky,
+  [data-theme="light"] header[class*="sticky"],
+  [data-theme="light"] header[class*="z-30"] {
+    background-color: #f8fafc !important;
+    opacity: 1 !important;
+  }
 }
 
 /* Dark theme background gradients */

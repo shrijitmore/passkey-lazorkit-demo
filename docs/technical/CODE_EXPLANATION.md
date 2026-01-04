@@ -9,21 +9,52 @@ passkey-lazorkit-demo/
 ├── app/
 │   ├── components/
 │   │   ├── LazorkitProviderWrapper.tsx  # LazorKit provider setup
-│   │   └── WalletPanel.tsx              # Main wallet UI component
-│   ├── layout.tsx                        # Root layout with provider
+│   │   ├── Providers.tsx                # Combined providers wrapper
+│   │   ├── WalletPanelEnhanced.tsx      # Main wallet UI component
+│   │   ├── TransferModal.tsx             # Transaction modal
+│   │   └── ...                          # Other components
+│   ├── layout.tsx                        # Root layout with Providers
 │   └── page.tsx                          # Home page
 ├── docs/
-│   ├── tutorial-1-passkey-wallet.md     # Tutorial 1
-│   ├── tutorial-2-gasless-transactions.md # Tutorial 2
-│   ├── tutorial-3-session-persistence.md  # Tutorial 3
-│   ├── TECHNICAL_EXPLANATION.md          # Technical deep dive
-│   └── CODE_EXPLANATION.md               # This file
+│   ├── tutorials/                        # Step-by-step tutorials
+│   │   ├── tutorial-1-passkey-wallet.md
+│   │   ├── tutorial-2-transactions.md
+│   │   ├── tutorial-3-session-persistence.md
+│   │   └── tutorial-4-subscription-billing.md
+│   ├── guides/                           # Integration guides
+│   ├── technical/                        # Technical documentation
+│   │   ├── TECHNICAL_EXPLANATION.md
+│   │   └── CODE_EXPLANATION.md          # This file
 └── README.md
 ```
 
 ## Component-by-Component Explanation
 
-### 1. LazorkitProviderWrapper.tsx
+### 1. Providers.tsx
+
+**Purpose**: Combined wrapper component that includes all providers (LazorKit, Theme, etc.).
+
+**How it works**:
+
+```typescript
+export default function Providers({ children }: { children: ReactNode }) {
+  return (
+    <ThemeProvider>
+      <LazorkitProviderWrapper>
+        {children}
+      </LazorkitProviderWrapper>
+    </ThemeProvider>
+  );
+}
+```
+
+**Why it exists**: 
+- Keeps layout.tsx clean (server component)
+- Allows combining multiple providers (Theme, LazorKit, etc.)
+- Makes it easy to add/remove providers
+- In this demo, it wraps both `ThemeProvider` and `LazorkitProviderWrapper`
+
+### 2. LazorkitProviderWrapper.tsx
 
 **Purpose**: Wraps the app with LazorKit's provider to enable wallet functionality everywhere.
 
@@ -34,6 +65,7 @@ passkey-lazorkit-demo/
   rpcUrl="https://api.devnet.solana.com"
   portalUrl="https://portal.lazor.sh"
   paymasterConfig={{ paymasterUrl: "https://kora.devnet.lazorkit.com" }}
+  passkey={true}
 >
 ```
 
@@ -50,13 +82,17 @@ passkey-lazorkit-demo/
    - Default: `https://portal.lazor.sh`
 
 3. **paymasterConfig** (optional):
-   - Enables gasless transactions
-   - Paymaster pays fees on behalf of users
+   - Paymaster configuration (may sponsor fees for certain transaction types)
+   - **Note**: Native SOL transfers typically use wallet-paid fees
    - Official Devnet: `https://kora.devnet.lazorkit.com`
+
+4. **passkey** (optional):
+   - Enables passkey authentication
+   - Set to `true` to use WebAuthn passkeys
 
 **Reference**: [LazorkitProvider API](https://docs.lazorkit.com/react-sdk/provider)
 
-### 2. WalletPanel.tsx
+### 3. WalletPanelEnhanced.tsx
 
 **Purpose**: Main UI component that demonstrates all LazorKit features.
 
@@ -83,7 +119,7 @@ const {
 - **connect()**: Initiates wallet connection. Creates/authenticates passkey.
 - **disconnect()**: Clears session and disconnects wallet.
 - **error**: Any errors from connection or transactions.
-- **signAndSendTransaction()**: Sends gasless transactions.
+- **signAndSendTransaction()**: Sends transactions with passkey signing (fees paid from wallet for native SOL transfers).
 - **signMessage()**: Signs messages without sending transactions.
 
 **Reference**: [useWallet API](https://docs.lazorkit.com/react-sdk/use-wallet)
@@ -129,7 +165,7 @@ const fetchBalance = async () => {
 - Uses Solana `Connection` to query blockchain
 - `getBalance()` returns balance in lamports
 - Converts to SOL (1 SOL = 1,000,000,000 lamports)
-- Polls every 5 seconds to keep balance updated
+- Polls every 30 seconds to keep balance updated
 
 **Note**: This is separate from LazorKit - we're directly querying Solana RPC.
 
@@ -160,9 +196,11 @@ const handleSendTransaction = async () => {
 2. **Call signAndSendTransaction**:
    - LazorKit prompts for biometric (Face ID/Touch ID)
    - Passkey signs transaction in Secure Enclave
-   - Transaction sent to Paymaster
-   - Paymaster pays fees and submits to Solana
+   - Transaction fees are paid from wallet balance (native SOL transfers)
+   - Transaction submitted to Solana network
    - Returns transaction signature
+   
+   **Note**: For native SOL transfers, fees are paid by the wallet. Paymaster may sponsor other transaction types, but native SOL transfers typically use wallet-paid fees.
 
 3. **Result**:
    - Transaction signature displayed
@@ -228,9 +266,7 @@ Browser prompts for biometric (Face ID/Touch ID)
     ↓
 Passkey signs in Secure Enclave
     ↓
-Transaction sent to Paymaster
-    ↓
-Paymaster pays fees
+Transaction fees paid from wallet balance
     ↓
 Transaction submitted to Solana
     ↓
@@ -238,6 +274,8 @@ Returns transaction signature
     ↓
 Display signature + Explorer link
 ```
+
+**Note**: For native SOL transfers, fees are paid by the wallet. Paymaster configuration may be present but typically doesn't sponsor native SOL transfers.
 
 ## Key Concepts Explained
 
@@ -261,16 +299,20 @@ Display signature + Explorer link
 
 **Reference**: [LazorKit Smart Wallets](https://docs.lazorkit.com/#smart-wallets)
 
-### 2. Paymaster (Gasless Transactions)
+### 2. Transaction Fees
 
-**How it works**:
+**Native SOL Transfers (This Demo)**:
 1. User creates transaction
 2. User signs with passkey
-3. Transaction sent to Paymaster
-4. Paymaster pays fees
-5. Transaction submitted to Solana
+3. Transaction fees paid from wallet balance
+4. Transaction submitted to Solana
 
-**Result**: Users don't need SOL for gas fees!
+**Result**: Transactions are signed with passkeys, fees are paid by wallet (realistic production behavior).
+
+**About Paymaster**:
+- Paymaster can sponsor fees for certain transaction types (like token transfers)
+- Native SOL transfers typically require wallet-paid fees due to paymaster policies
+- Paymaster configuration is included but may not apply to all transaction types
 
 **Configuration**:
 ```typescript
@@ -338,7 +380,7 @@ await connect({
 
 ### signAndSendTransaction(payload)
 
-**Purpose**: Send gasless transaction
+**Purpose**: Send transaction with passkey signing (fees paid from wallet for native SOL transfers)
 
 **Parameters**:
 ```typescript
@@ -407,7 +449,7 @@ try {
 ## Best Practices Implemented
 
 1. **Memoized Config**: Paymaster config is memoized to prevent re-renders
-2. **Balance Polling**: Automatically refreshes balance every 5 seconds
+2. **Balance Polling**: Automatically refreshes balance every 30 seconds
 3. **Error Handling**: All errors are caught and displayed to users
 4. **Loading States**: Shows loading indicators during async operations
 5. **State Cleanup**: Clears state when wallet disconnects
@@ -433,7 +475,7 @@ Our implementation:
 ✅ Implements all core features (connect, disconnect, signMessage, signAndSendTransaction)
 ✅ Uses official Devnet configuration
 ✅ Includes comprehensive error handling
-✅ Demonstrates gasless transactions
+✅ Demonstrates passkey-authenticated transactions with wallet-paid fees
 ✅ Shows session persistence
 ✅ Provides detailed code comments
 ✅ Matches official API signatures exactly

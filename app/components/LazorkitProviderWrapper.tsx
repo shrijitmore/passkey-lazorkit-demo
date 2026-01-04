@@ -3,81 +3,64 @@
 import { LazorkitProvider } from '@lazorkit/wallet';
 import { useMemo, type ReactNode } from 'react';
 
-/**
- * LazorkitProviderWrapper
- * 
- * This component wraps the application with LazorKit's provider, which:
- * 1. Initializes the LazorKit SDK
- * 2. Provides wallet context to all child components via React Context
- * 3. Handles WebAuthn/passkey authentication
- * 4. Manages smart wallet (PDA) creation and session persistence
- * 
- * Reference: https://docs.lazorkit.com/react-sdk/provider
- */
-
-// Official LazorKit Devnet configuration from https://docs.lazorkit.com/react-sdk/getting-started
 const RPC_URL = 'https://api.devnet.solana.com';
 const PORTAL_URL = 'https://portal.lazor.sh';
-const PAYMASTER_URL = 'https://kora.devnet.lazorkit.com'; // Official Devnet paymaster
+const PAYMASTER_URL = 'https://kora.devnet.lazorkit.com';
 
 /**
  * LazorKit Provider Wrapper
  * 
- * Configures LazorKit SDK with paymaster support for passkey-based authentication.
+ * IMPORTANT: Why Paymaster Errors Occur
  * 
- * CRITICAL: Config must be memoized to prevent infinite re-render loops.
- * LazorKit uses an internal store that triggers re-renders if config object identity changes.
+ * Even though we don't explicitly use paymaster in our code, the LazorKit SDK
+ * automatically routes ALL transactions through the paymaster pipeline when
+ * paymasterConfig is provided in the provider.
+ * 
+ * What happens:
+ * 1. We set paymasterConfig in the provider
+ * 2. SDK automatically tries to use paymaster for every transaction
+ * 3. Paymaster rejects native SOL transfers (policy-level rejection)
+ * 4. This causes Error 0x2 (simulation failed)
+ * 
+ * Solution Options:
+ * 
+ * Option 1: Remove paymasterConfig (Recommended for native SOL only)
+ * - Removes paymaster entirely
+ * - All transactions are wallet-paid
+ * - No 0x2 errors for native SOL transfers
+ * - Use this if you only need native SOL transfers
+ * 
+ * Option 2: Keep paymasterConfig (For token transfers)
+ * - Paymaster available for token transfers (USDC, etc.)
+ * - Native SOL transfers will get 0x2 errors (expected)
+ * - Users need to disconnect/reconnect to reset wallet state
+ * - Use this if you need gasless token transfers
+ * 
+ * Current setup: paymasterConfig is REMOVED to avoid 0x2 errors
+ * If you need paymaster for token transfers, uncomment the paymasterConfig below.
  */
 export default function LazorkitProviderWrapper({
   children,
 }: {
   children: ReactNode;
 }) {
-  /**
-   * Memoize paymasterConfig to prevent object recreation on each render.
-   * This is important because React will see it as a new object each time,
-   * causing unnecessary re-renders of the LazorkitProvider.
-   * 
-   * paymasterConfig enables gasless transactions:
-   * - paymasterUrl: The Paymaster service pays transaction fees on behalf of users
-   * - apiKey: Optional API key if the paymaster service requires authentication
-   * 
-   * Reference: https://docs.lazorkit.com/react-sdk/provider#paymasterconfig-optional
-   */
-  const paymasterConfig = useMemo(
-    () => ({
-      paymasterUrl: PAYMASTER_URL,
-      // apiKey: 'YOUR_API_KEY' // Optional: Only needed if paymaster requires authentication
-    }),
-    [] // Empty deps = config never changes
-  );
-
-  /**
-   * LazorkitProvider Props (from https://docs.lazorkit.com/react-sdk/provider):
-   * 
-   * - rpcUrl (required): Solana RPC endpoint URL
-   *   Used to interact with the Solana blockchain (query balance, send transactions, etc.)
-   * 
-   * - portalUrl (optional): LazorKit authentication portal URL
-   *   Default: 'https://portal.lazor.sh'
-   *   Handles WebAuthn passkey creation and authentication
-   *   Only change if self-hosting the portal
-   * 
-   * - paymasterConfig (optional): Paymaster service configuration
-   *   Enables gasless transactions - users don't need SOL for fees
-   *   The paymaster pays transaction fees on behalf of users
-   * 
-   * - passkey (optional): Enable passkey authentication
-   *   Default: true
-   *   Enables WebAuthn passkey support for wallet authentication
-   * 
-   * - children: Your application components that need wallet access
-   */
+  // Paymaster config is REMOVED to prevent 0x2 errors for native SOL transfers
+  // The SDK automatically routes transactions through paymaster when this is set,
+  // causing paymaster to reject native SOL transfers (policy-level rejection)
+  
+  // If you need paymaster for token transfers (USDC, etc.), uncomment this:
+  // const paymasterConfig = useMemo(
+  //   () => ({
+  //     paymasterUrl: PAYMASTER_URL,
+  //   }),
+  //   []
+  // );
+  
   return (
     <LazorkitProvider
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
-      paymasterConfig={paymasterConfig}
+      // paymasterConfig={paymasterConfig} // REMOVED to prevent 0x2 errors
       // @ts-expect-error - passkey prop exists at runtime but types may be outdated
       passkey={true}
     >

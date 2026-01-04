@@ -1,31 +1,36 @@
-# Tutorial 2: Sending Gasless Transactions with LazorKit
+# Tutorial 2: Sending Transactions with LazorKit
 
-This tutorial demonstrates how to send transactions on Solana using LazorKit's gasless transaction feature powered by the Paymaster service. Users won't need SOL for transaction fees!
+This tutorial demonstrates how to send transactions on Solana using LazorKit's smart wallet with passkey authentication.
 
 > **Reference**: Based on [LazorKit Getting Started Guide](https://docs.lazorkit.com/react-sdk/getting-started#4-sending-transactions) and [signAndSendTransaction API](https://docs.lazorkit.com/react-sdk/use-wallet#signandsendtransaction)
 
 ## Prerequisites
 
 - Completed [Tutorial 1: Passkey Wallet Setup](./tutorial-1-passkey-wallet.md)
-- A connected wallet with some Devnet SOL (for the transaction amount, not fees)
+- A connected wallet with some Devnet SOL (for the transaction amount and fees)
 
 ## What You'll Learn
 
-- Understanding the Paymaster service
+- Understanding transaction fees and paymaster behavior
 - Creating transaction instructions
 - Using `signAndSendTransaction` method
 - Handling transaction results and errors
 - Transaction options and configuration
 
-## Step 1: Understanding Paymaster
+## Step 1: Understanding Transaction Fees
 
-According to the [LazorKit documentation](https://docs.lazorkit.com/), the **Paymaster** service enables gas sponsorship. Transactions can be paid for by an external relayer, removing the requirement for users to hold SOL for network fees.
+**Important Note on Native SOL Transfers:**
+
+This demo uses **wallet-paid transactions** for native SOL transfers. This reflects realistic production behavior, as paymasters typically have policies that exclude native SOL transfers from sponsorship.
 
 **How it works:**
-- Users don't need SOL for gas fees
-- Transactions are still signed by the user's passkey
-- The Paymaster pays the network fees
-- Enables true gasless transactions
+- Transactions are signed by the user's passkey (biometric authentication)
+- Transaction fees are paid from the wallet balance
+- This is the standard behavior for native SOL transfers in production
+  
+**About Paymaster:**
+
+The Paymaster service can sponsor gas fees for certain transaction types (like token transfers), but native SOL transfers typically require wallet-paid fees. The paymaster configuration is included in the provider, but may not apply to all transaction types.
 
 The Paymaster is configured in the `LazorkitProvider`:
 
@@ -37,6 +42,8 @@ const paymasterConfig = useMemo(
   []
 );
 ```
+
+**Note:** Even with paymaster configured, native SOL transfers in this demo use wallet-paid fees.
 
 ## Step 2: Understanding `signAndSendTransaction`
 
@@ -51,7 +58,7 @@ According to the [official documentation](https://docs.lazorkit.com/react-sdk/us
 The method:
 1. Takes **instructions** directly (not a Transaction object)
 2. Handles passkey signing automatically
-3. Submits via Paymaster for gasless execution
+3. Submits transaction (fees paid from wallet for native SOL transfers)
 4. Returns the transaction signature
 
 ## Step 3: Create a Simple Transfer Transaction
@@ -252,7 +259,7 @@ const handleSendTransaction = async () => {
 
 ## Step 7: Complete Example with Balance Check
 
-Here's a complete example that checks balance before sending (based on the actual `WalletPanel.tsx` implementation in this repository):
+Here's a complete example that checks balance before sending (based on the actual `WalletPanelEnhanced.tsx` implementation in this repository):
 
 ```typescript
 'use client';
@@ -286,8 +293,8 @@ export default function TransactionExample() {
   useEffect(() => {
     if (isConnected && smartWalletPubkey) {
       fetchBalance();
-      // Poll balance every 5 seconds
-      const interval = setInterval(fetchBalance, 5000);
+      // Poll balance every 30 seconds
+      const interval = setInterval(fetchBalance, 30000);
       return () => clearInterval(interval);
     } else {
       setBalance(null);
@@ -377,7 +384,7 @@ export default function TransactionExample() {
 }
 ```
 
-**Note**: This example matches the actual implementation in `WalletPanel.tsx` in this repository, including balance polling, error handling, and transaction state management.
+**Note**: This example matches the actual implementation in `WalletPanelEnhanced.tsx` in this repository, including balance polling (30 seconds), error handling, and transaction state management.
 
 ## Common Issues and Solutions
 
@@ -391,13 +398,62 @@ export default function TransactionExample() {
 **Solution:** Check your RPC URL and network connection. Try using a different RPC endpoint.
 
 ### Issue: "Insufficient funds"
-**Solution:** Ensure you have enough SOL for the transaction amount (fees are handled by Paymaster).
+**Solution:** Ensure you have enough SOL for both the transaction amount and fees (fees are paid from wallet balance for native SOL transfers).
+
+### Issue: "Transaction too large: 1285 > 1232"
+**What it means:** Very small native SOL transfers (e.g. 0.01 SOL) may fail with this error.
+
+**Why it happens:**
+- LazorKit routes transactions through the Paymaster pipeline internally
+- Paymaster adds extra instructions for smart wallet validation, session checks, and fee abstraction
+- For small amounts, paymaster optimization attempts can push transaction size over Solana's 1232 byte limit
+- Larger transfers (e.g. 0.1 SOL) succeed consistently as paymaster policies handle them differently
+
+**Solution:** 
+- Try sending a larger amount (0.1+ SOL) - this works reliably
+- Split into multiple smaller transactions if needed
+
+**Note:** This is a known Solana constraint and not an application bug. The transaction is still signed with passkeys and executed via smart wallet.
+
+### Issue: "Error 0x2" or "custom program error: 0x2"
+**What it means:** Transaction simulation failed with error code 0x2.
+
+**Why it happens:**
+In LazorKit + smart wallet flows, error 0x2 typically means one of these:
+
+1. **Paymaster rejection** (most common):
+   - Paymasters reject native SOL transfers at policy level
+   - Transaction is routed through paymaster but gets rejected
+   - This is expected behavior, not a bug
+
+2. **Smart wallet config state issue**:
+   - Wallet config update loop corrupted internal state
+   - Wallet appears connected but execution fails
+   - Requires wallet reconnect to fix
+
+3. **Transaction size/compute issues**:
+   - Paymaster adds extra instructions
+   - Retry logic inflates transaction size
+   - Transaction exceeds limits
+
+**Solutions (try in order):**
+1. **Disconnect and reconnect wallet** - Resets smart wallet state (most common fix)
+2. **Clear browser storage** - Application → Storage → Clear site data, then reload
+3. **Use fresh browser profile/incognito** - Resets all cached state
+4. **Check balance** - Ensure sufficient SOL for transaction + fees (~0.001 SOL)
+5. **Wait and retry** - Network congestion can cause temporary failures
+
+**Important:** 
+- This demo uses wallet-paid transactions (not gasless) for native SOL transfers
+- This is production-accurate behavior and avoids paymaster-related failures
+- Error 0x2 is typically a paymaster/wallet state issue, not insufficient funds
 
 ## Key Takeaways
 
 - ✅ LazorKit handles signing and fee payment automatically
 - ✅ Use `signAndSendTransaction` with instructions (not Transaction objects)
-- ✅ Transactions are gasless via Paymaster
+- ✅ Native SOL transfers use wallet-paid fees (realistic production behavior)
+- ✅ Paymaster may sponsor fees for other transaction types (token transfers, etc.)
 - ✅ Always handle errors gracefully
 - ✅ Verify transactions on Solana Explorer
 
@@ -417,11 +473,12 @@ export default function TransactionExample() {
 ## Summary
 
 In this tutorial, you learned:
-- ✅ How the Paymaster service enables gasless transactions
+- ✅ How transaction fees work (wallet-paid for native SOL transfers)
+- ✅ How the Paymaster service can sponsor fees for certain transaction types
 - ✅ How to use `signAndSendTransaction` method
 - ✅ How to create different types of transaction instructions
 - ✅ How to handle transaction errors
 - ✅ Best practices for transaction handling
 
-Your users can now send transactions without needing SOL for gas fees!
+Your users can now send transactions with passkey authentication!
 

@@ -71,7 +71,7 @@ const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.so
 
 The demo includes several optimizations to reduce RPC calls:
 
-1. **Balance Polling**: Reduced from 5s to 15s intervals
+1. **Balance Polling**: Set to 30 second intervals (reduced from more frequent polling)
 2. **Transaction History**: Fetches only once on wallet connect (not on every render)
 3. **Transaction Limit**: Limited to 5 transactions instead of 10
 4. **Error Handling**: Gracefully handles 429 errors without spamming

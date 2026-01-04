@@ -77,6 +77,7 @@ export default function LazorkitProviderWrapper({
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
+      passkey={true} // Enable passkey authentication
     >
       {children}
     </LazorkitProvider>
@@ -88,30 +89,58 @@ export default function LazorkitProviderWrapper({
 
 - `rpcUrl` (required): Your Solana RPC endpoint (Devnet, Mainnet, or custom)
 - `portalUrl` (optional): LazorKit's authentication portal (default: `https://portal.lazor.sh`)
-- `paymasterConfig` (optional): Configuration for gasless transactions
+- `paymasterConfig` (optional): Paymaster configuration (may sponsor fees for certain transaction types)
   - `paymasterUrl`: The API endpoint for the paymaster
   - `apiKey`: Your API key if the service requires one
+  - **Note**: Native SOL transfers typically use wallet-paid fees
 
 ## Step 4: Wrap Your App with the Provider
 
-In your root layout (`app/layout.tsx`), wrap your application:
+In your root layout (`app/layout.tsx`), wrap your application. For better organization, especially if you have multiple providers, create a `Providers.tsx` wrapper:
 
 ```typescript
+// app/components/Providers.tsx
+'use client';
+
+import { ReactNode } from 'react';
+import LazorkitProviderWrapper from './LazorkitProviderWrapper';
+import { ThemeProvider } from '../contexts/ThemeContext'; // If you have a theme provider
+
+export default function Providers({ children }: { children: ReactNode }) {
+  return (
+    <ThemeProvider>
+      <LazorkitProviderWrapper>
+        {children}
+      </LazorkitProviderWrapper>
+    </ThemeProvider>
+  );
+}
+```
+
+**Note**: In this demo, `Providers.tsx` includes both `ThemeProvider` and `LazorkitProviderWrapper`. If you don't need a theme provider, you can use `LazorkitProviderWrapper` directly.
+
+Then in your root layout:
+
+```typescript
+// app/layout.tsx
 import type { ReactNode } from 'react';
-import LazorkitProviderWrapper from './components/LazorkitProviderWrapper';
+import Providers from './components/Providers';
+import './globals.css';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <LazorkitProviderWrapper>
+        <Providers>
           {children}
-        </LazorkitProviderWrapper>
+        </Providers>
       </body>
     </html>
   );
 }
 ```
+
+**Note**: You can also use `LazorkitProviderWrapper` directly in the layout if you don't need a wrapper component.
 
 ## Step 5: Implement the Wallet Connection Component
 
@@ -167,7 +196,7 @@ export function ConnectButton() {
 }
 ```
 
-**Note**: This is a basic example. In this repository, the actual `WalletPanel.tsx` component includes additional features like:
+**Note**: This is a basic example. In this repository, the actual `WalletPanelEnhanced.tsx` component includes additional features like:
 - Balance fetching and display
 - Copy address functionality
 - Transaction sending with `signAndSendTransaction`
@@ -175,7 +204,7 @@ export function ConnectButton() {
 - Faucet instructions
 - Comprehensive error handling
 
-You can view the complete implementation in `app/components/WalletPanel.tsx`.
+You can view the complete implementation in `app/components/WalletPanelEnhanced.tsx`.
 
 ## Step 6: Understanding the Connection Flow
 
@@ -238,7 +267,7 @@ await connect({
 });
 ```
 
-- `feeMode: 'paymaster'`: Transactions are gasless (default)
+- `feeMode: 'paymaster'`: Paymaster may sponsor fees (default, but native SOL transfers typically use wallet-paid fees)
 - `feeMode: 'user'`: User pays transaction fees
 
 ## Step 10: Testing the Integration
@@ -274,7 +303,7 @@ await connect({
 
 Now that you have a working passkey-based wallet connection, you can:
 - Display wallet balance
-- Send transactions (see [Tutorial 2: Gasless Transactions](./tutorial-2-gasless-transactions.md))
+- Send transactions (see [Tutorial 2: Transactions](./tutorial-2-transactions.md))
 - Implement session persistence (see [Tutorial 3: Session Persistence](./tutorial-3-session-persistence.md))
 
 ## Additional Resources

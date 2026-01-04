@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import {
   Connection,
@@ -10,6 +10,7 @@ import TransferModal from './TransferModal';
 import TransactionHistory from './TransactionHistory';
 import SpotlightCard from './SpotlightCard';
 import { useTheme } from '../contexts/ThemeContext';
+import { WALLET_EVENTS, listenWalletEvent } from '../lib/events/walletEvents';
 
 const RPC_URL = 'https://api.devnet.solana.com';
 const EXPLORER_URL = 'https://explorer.solana.com';
@@ -34,6 +35,9 @@ export default function WalletPanelEnhanced() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [txHistoryRefreshTrigger, setTxHistoryRefreshTrigger] = useState(0);
+  
+  const prevIsConnectedRef = useRef(isConnected);
+  const prevPubkeyRef = useRef<string | null>(null);
 
   const fetchBalance = useCallback(async () => {
     if (!smartWalletPubkey) return;
@@ -41,7 +45,13 @@ export default function WalletPanelEnhanced() {
     try {
       const connection = new Connection(RPC_URL, 'confirmed');
       const balance = await connection.getBalance(smartWalletPubkey);
-      setBalance(balance / LAMPORTS_PER_SOL);
+      const balanceInSol = balance / LAMPORTS_PER_SOL;
+      setBalance(prev => {
+        if (prev === null) return balanceInSol;
+        const prevRounded = Math.round(prev * 10000) / 10000;
+        const newRounded = Math.round(balanceInSol * 10000) / 10000;
+        return prevRounded === newRounded ? prev : balanceInSol;
+      });
     } catch (err) {
       // Silently handle balance fetch errors
     } finally {
@@ -51,18 +61,44 @@ export default function WalletPanelEnhanced() {
 
   // Fetch balance when wallet connects
   useEffect(() => {
-    if (isConnected && smartWalletPubkey) {
-      fetchBalance();
-      // Poll balance every 15 seconds (reduced from 5s to avoid rate limiting)
-      const interval = setInterval(fetchBalance, 15000);
-      return () => clearInterval(interval);
-    } else {
-      setBalance(null);
-      setLastTxSignature(null);
-      setShowSuccess(false);
+    const pubkeyString = smartWalletPubkey?.toString() || null;
+    const isConnectedChanged = prevIsConnectedRef.current !== isConnected;
+    const pubkeyChanged = prevPubkeyRef.current !== pubkeyString;
+    
+    if (isConnectedChanged || pubkeyChanged) {
+      prevIsConnectedRef.current = isConnected;
+      prevPubkeyRef.current = pubkeyString;
+      
+      if (isConnected && smartWalletPubkey) {
+        fetchBalance();
+        // Reduced polling interval to 30 seconds (fallback)
+        const interval = setInterval(() => {
+          fetchBalance();
+        }, 30000);
+        return () => clearInterval(interval);
+      } else {
+        setBalance(null);
+        setLastTxSignature(null);
+        setShowSuccess(false);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, smartWalletPubkey]);
+  }, [isConnected, smartWalletPubkey]); // fetchBalance is stable via useCallback
+
+  // Listen for transaction completed events to refresh balance immediately
+  useEffect(() => {
+    if (!isConnected || !smartWalletPubkey) return;
+
+    const unsubscribe = listenWalletEvent(
+      WALLET_EVENTS.TRANSACTION_COMPLETED,
+      () => {
+        // Refresh balance immediately when transaction completes
+        fetchBalance();
+      }
+    );
+
+    return unsubscribe;
+  }, [isConnected, smartWalletPubkey, fetchBalance]);
 
   const copyAddress = async () => {
     if (!smartWalletPubkey) return;
@@ -80,7 +116,6 @@ export default function WalletPanelEnhanced() {
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 5000);
     fetchBalance();
-    // Trigger transaction history refresh after a delay (to allow transaction to be indexed)
     setTimeout(() => {
       setTxHistoryRefreshTrigger(prev => prev + 1);
     }, 3000);
@@ -102,14 +137,9 @@ export default function WalletPanelEnhanced() {
     }
 
     try {
-      // With passkey={true} on LazorkitProvider, connect() should handle:
-      // 1. Creating passkey if it doesn't exist (triggers WebAuthn/biometric prompt)
-      // 2. Creating smart wallet with the passkey
-      // 3. Reconnecting if passkey and wallet already exist
       await connect();
-      setConnectError(null); // Clear error on success
+      setConnectError(null);
     } catch (err: unknown) {
-      // Provide user-friendly error messages
       let errorMessage = 'Failed to connect wallet';
       
       const errorObj = err as { message?: string; name?: string };
@@ -263,10 +293,21 @@ export default function WalletPanelEnhanced() {
 
         {/* Balance */}
         <div className="glass-dark rounded-xl p-6 mb-6">
-          <p className="text-sm text-secondary mb-2">Total Balance</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-secondary">Total Balance</p>
+            {isLoadingBalance && balance !== null && (
+              <span className="text-xs text-primary flex items-center gap-1">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                Updating...
+              </span>
+            )}
+          </div>
           <div className="flex items-end gap-3">
-            {isLoadingBalance ? (
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
+            {isLoadingBalance && balance === null ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
+                <p className="text-4xl font-bold gradient-text">0.0000</p>
+              </div>
             ) : (
               <>
                 <p className="text-4xl font-bold gradient-text">
