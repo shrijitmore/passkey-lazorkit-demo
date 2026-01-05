@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { updateSubscription, getSubscriptions } from '../lib/subscription/storage';
-import { calculateNextBillingDate } from '../lib/subscription/utils';
-import type { Subscription, SubscriptionPlanId } from '../lib/subscription/types';
-import { WALLET_EVENTS, dispatchWalletEvent } from '../lib/events/walletEvents';
-import AlertMessage from './ui/AlertMessage';
-import LoadingSpinner from './ui/LoadingSpinner';
+import { updateSubscription, getSubscriptions } from '../../lib/subscription/storage';
+import { calculateNextBillingDate } from '../../lib/subscription/utils';
+import type { Subscription, SubscriptionPlanId } from '../../lib/subscription/types';
+import { WALLET_EVENTS, dispatchWalletEvent } from '../../lib/events/walletEvents';
+import AlertMessage from '../ui/AlertMessage';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 const PLAN_NAMES: Record<string, string> = {
   basic: 'Basic',

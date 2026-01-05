@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { getConnection } from '../lib/rpc/connection';
-import { getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
-import LoadingSpinner from './ui/LoadingSpinner';
+import { getConnection } from '../../lib/rpc/connection';
+import { getTransactionExplorerUrl } from '../../lib/utils/explorerUrls';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface Transaction {
   signature: string;
@@ -90,9 +90,9 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
   if (!isConnected) return null;
 
   return (
-    <div className="glass rounded-2xl p-6" data-testid="transaction-history">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold gradient-text">Transaction History</h3>
+    <div className="glass rounded-2xl p-4 sm:p-6" data-testid="transaction-history">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h3 className="text-lg sm:text-xl font-bold gradient-text">Transaction History</h3>
         <button
           onClick={fetchTransactions}
           className="text-sm text-primary hover:text-primary-text transition-colors"
@@ -111,8 +111,8 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
 
       {/* Error message */}
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-          <p className="text-xs text-red-400">{error}</p>
+        <div className="mb-3 sm:mb-4 p-2.5 sm:p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+          <p className="text-xs text-red-400 break-words">{error}</p>
           <p className="text-xs text-red-300/70 mt-1">Click refresh to try again</p>
         </div>
       )}
@@ -135,20 +135,20 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
           <p className="text-gray-400 text-sm mt-3">Loading transactions...</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {transactions.map((tx, index) => (
             <a
               key={tx.signature}
               href={getTransactionExplorerUrl(tx.signature)}
               target="_blank"
               rel="noopener noreferrer"
-              className="block glass-dark rounded-lg p-4 hover:border-primary/50 transition-all card-hover"
+              className="block glass-dark rounded-lg p-3 sm:p-4 hover:border-primary/50 transition-all card-hover"
               data-testid={`transaction-item-${index}`}
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs px-2 py-1 rounded ${
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-1">
+                    <span className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded ${
                       tx.type === 'Success' 
                         ? 'bg-green-500/20 text-green-400' 
                         : 'bg-red-500/20 text-red-400'
@@ -159,11 +159,11 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
                       {new Date(tx.timestamp).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm font-mono text-gray-300 truncate">
+                  <p className="text-xs sm:text-sm font-mono text-gray-300 break-all">
                     {tx.signature}
                   </p>
                 </div>
-                <svg className="w-4 h-4 text-primary ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-primary ml-1 sm:ml-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
               </div>

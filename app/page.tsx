@@ -28,7 +28,7 @@ import { Wallet, Send, CreditCard, TrendingUp, ArrowRight, RefreshCw } from 'luc
 import AppLayout from './components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
-import TransactionHistory from './components/TransactionHistory';
+import TransactionHistory from './components/wallet/TransactionHistory';
 import { getSubscriptions } from './lib/subscription/storage';
 import { useBalance } from './contexts/BalanceContext';
 import { useWebAuthnConnection } from './lib/hooks/useWebAuthnConnection';

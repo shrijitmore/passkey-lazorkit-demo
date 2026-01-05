@@ -144,7 +144,7 @@ Update `app/layout.tsx`:
 
 ```tsx
 import type { ReactNode } from 'react';
-import Providers from './components/Providers';
+import Providers from './components/providers/Providers';
 import './globals.css';
 
 export const metadata = {
@@ -168,7 +168,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 **Alternative (Direct Usage)**: If you don't need a Providers wrapper, you can use `LazorkitProviderWrapper` directly:
 
 ```tsx
-import LazorkitProviderWrapper from './components/LazorkitProviderWrapper';
+import LazorkitProviderWrapper from './components/providers/LazorkitProviderWrapper';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -268,7 +268,8 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 
-const RPC_URL = 'https://api.devnet.solana.com';
+import { getConnection } from '../lib/rpc/connection';
+import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
 
 export default function WalletPanelEnhanced() {
   const {
@@ -278,8 +279,8 @@ export default function WalletPanelEnhanced() {
     connect,               // Connect function
     disconnect,            // Disconnect function
     error,                 // Error state
-    signAndSendTransaction // Send transactions
   } = useWallet();
+  const { signTransaction } = useTransactionSigning();
 
   const [balance, setBalance] = useState<number | null>(null);
 
@@ -292,7 +293,7 @@ export default function WalletPanelEnhanced() {
 
   const fetchBalance = async () => {
     if (!smartWalletPubkey) return;
-    const connection = new Connection(RPC_URL, 'confirmed');
+    const connection = getConnection();
     const balance = await connection.getBalance(smartWalletPubkey);
     setBalance(balance / LAMPORTS_PER_SOL);
   };
@@ -541,21 +542,14 @@ if (isConnecting) {
 Wait for transaction confirmation:
 
 ```tsx
-const signature = await signAndSendTransaction({...});
-const connection = new Connection(RPC_URL, 'confirmed');
+import { getConnection } from '../lib/rpc/connection';
+
+const signature = await signTransaction({...});
+const connection = getConnection();
 await connection.confirmTransaction(signature, 'confirmed');
 ```
 
-### 4. Memoization
-
-Memoize expensive operations:
-
-```tsx
-const connection = useMemo(
-  () => new Connection(RPC_URL, 'confirmed'),
-  []
-);
-```
+**Note**: In the actual codebase, we use `getConnection()` which provides a singleton Connection instance. This is more efficient than creating new connections or memoizing, and prevents multiple connection instances.
 
 ---
 

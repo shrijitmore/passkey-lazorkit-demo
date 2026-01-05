@@ -1,8 +1,8 @@
 'use client';
 
 import AppLayout from '../components/layout/AppLayout';
-import SubscriptionDemo from '../components/SubscriptionDemo';
-import SubscriptionManager from '../components/SubscriptionManager';
+import SubscriptionDemo from '../components/subscription/SubscriptionDemo';
+import SubscriptionManager from '../components/subscription/SubscriptionManager';
 
 export default function SubscriptionPage() {
   return (

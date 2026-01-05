@@ -2,7 +2,7 @@
 
 import { LazorkitProvider } from '@lazorkit/wallet';
 import { useMemo, type ReactNode } from 'react';
-import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
 
 /**
  * LazorKit Provider Wrapper

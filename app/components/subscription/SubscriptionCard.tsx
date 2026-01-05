@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { updateSubscription } from '../lib/subscription/storage';
-import { formatDate, calculateNextBillingDate } from '../lib/subscription/utils';
-import type { Subscription } from '../lib/subscription/types';
+import { updateSubscription } from '../../lib/subscription/storage';
+import { formatDate, calculateNextBillingDate } from '../../lib/subscription/utils';
+import type { Subscription } from '../../lib/subscription/types';
 import SubscriptionActions from './SubscriptionActions';
 import SubscriptionPaymentHistory from './SubscriptionPaymentHistory';
-import SpotlightCard from './SpotlightCard';
-import { useTheme } from '../contexts/ThemeContext';
+import SpotlightCard from '../features/SpotlightCard';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const PLAN_NAMES: Record<string, string> = {
   basic: 'Basic',

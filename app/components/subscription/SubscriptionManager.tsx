@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { getSubscriptions } from '../lib/subscription/storage';
-import { formatDate } from '../lib/subscription/utils';
-import type { Subscription } from '../lib/subscription/types';
+import { getSubscriptions } from '../../lib/subscription/storage';
+import { formatDate } from '../../lib/subscription/utils';
+import type { Subscription } from '../../lib/subscription/types';
 import SubscriptionCard from './SubscriptionCard';
-import { useTheme } from '../contexts/ThemeContext';
-import { WALLET_EVENTS, listenWalletEvent } from '../lib/events/walletEvents';
+import { useTheme } from '../../contexts/ThemeContext';
+import { WALLET_EVENTS, listenWalletEvent } from '../../lib/events/walletEvents';
 
 export default function SubscriptionManager() {
   const { smartWalletPubkey, isConnected } = useWallet();

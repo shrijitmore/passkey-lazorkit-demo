@@ -79,17 +79,22 @@ The LazorKit SDK is already configured in this example. Here's how it's set up:
 ```typescript
 // app/components/LazorkitProviderWrapper.tsx
 import { LazorkitProvider } from '@lazorkit/wallet';
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
 
 <LazorkitProvider
-  rpcUrl="https://api.devnet.solana.com"
-  portalUrl="https://portal.lazor.sh"
-  paymasterConfig={{ paymasterUrl: "https://kora.devnet.lazorkit.com" }}
-  isDebug={true}
-  network="devnet"
+  rpcUrl={RPC_URL}
+  portalUrl={PORTAL_URL}
+  paymasterConfig={{ paymasterUrl: PAYMASTER_URL }}
+  {...({
+    isDebug: true,
+    network: 'devnet',
+  } as any)}
 >
   {children}
 </LazorkitProvider>
 ```
+
+**Note**: URLs are centralized in `app/lib/constants/urls.ts` for easier maintenance. The `isDebug` and `network` props use a type assertion (`as any`) because they may not be in the TypeScript definitions yet but are supported at runtime.
 
 See [Integration Guide](./docs/guides/integration-guide.md) for detailed setup instructions.
 

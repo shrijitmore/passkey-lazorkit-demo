@@ -3,20 +3,20 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { getConnection } from '../lib/rpc/connection';
+import { getConnection } from '../../lib/rpc/connection';
 import { Check } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import AlertMessage from './ui/AlertMessage';
-import LoadingSpinner from './ui/LoadingSpinner';
-import { addSubscription, getSubscriptions } from '../lib/subscription/storage';
-import { generateSubscriptionId, calculateNextBillingDate } from '../lib/subscription/utils';
-import type { Subscription, SubscriptionPlanId } from '../lib/subscription/types';
-import { WALLET_EVENTS, dispatchWalletEvent } from '../lib/events/walletEvents';
-import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
-import { parseError } from '../lib/utils/errorHandling';
-import { SUBSCRIPTION_PLANS } from '../lib/constants/subscriptionPlans';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import AlertMessage from '../ui/AlertMessage';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import { addSubscription, getSubscriptions } from '../../lib/subscription/storage';
+import { generateSubscriptionId, calculateNextBillingDate } from '../../lib/subscription/utils';
+import type { Subscription, SubscriptionPlanId } from '../../lib/subscription/types';
+import { WALLET_EVENTS, dispatchWalletEvent } from '../../lib/events/walletEvents';
+import { useTransactionSigning } from '../../lib/hooks/useTransactionSigning';
+import { parseError } from '../../lib/utils/errorHandling';
+import { SUBSCRIPTION_PLANS } from '../../lib/constants/subscriptionPlans';
 
 // Merchant wallet address - receives subscription payments
 const MERCHANT_WALLET = new PublicKey('9T2zGaNBr7bKBBEvQ9AAGNwCG3iL4jVF2Z8TipqikpKG');

@@ -1,8 +1,8 @@
 'use client';
 
-import type { Subscription } from '../lib/subscription/types';
-import { formatDateTime } from '../lib/subscription/utils';
-import { getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
+import type { Subscription } from '../../lib/subscription/types';
+import { formatDateTime } from '../../lib/subscription/utils';
+import { getTransactionExplorerUrl } from '../../lib/utils/explorerUrls';
 
 interface SubscriptionPaymentHistoryProps {
   subscription: Subscription;

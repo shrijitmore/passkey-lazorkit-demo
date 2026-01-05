@@ -396,15 +396,18 @@ const handleConnect = async () => {
 ### Pattern 3: Transaction with Options
 
 ```typescript
-const signature = await signAndSendTransaction({
+// Note: In the actual codebase, we use useTransactionSigning hook which wraps signAndSendTransaction
+import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
+
+const { signTransaction } = useTransactionSigning();
+
+const signature = await signTransaction({
   instructions: [instruction],
-  transactionOptions: {
-    feeToken: 'USDC',
-    computeUnitLimit: 500_000,
-    clusterSimulation: 'devnet',
-  },
+  // Note: transactionOptions can be passed if needed, but useTransactionSigning handles retry logic
 });
 ```
+
+**Note**: The actual codebase uses the `useTransactionSigning` hook which wraps `signAndSendTransaction` with automatic credential refresh and retry logic. For direct API usage (without retry), you can use `signAndSendTransaction` from `useWallet()`, but the hook is recommended for better error handling.
 
 ## Additional Resources
 

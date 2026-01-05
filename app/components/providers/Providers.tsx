@@ -2,8 +2,8 @@
 
 import { ReactNode } from 'react';
 import LazorkitProviderWrapper from './LazorkitProviderWrapper';
-import { ThemeProvider } from '../contexts/ThemeContext';
-import { BalanceProvider } from '../contexts/BalanceContext';
+import { ThemeProvider } from '../../contexts/ThemeContext';
+import { BalanceProvider } from '../../contexts/BalanceContext';
 
 /**
  * Combined Providers Wrapper

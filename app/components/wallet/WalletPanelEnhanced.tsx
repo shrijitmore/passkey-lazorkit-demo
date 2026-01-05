@@ -27,16 +27,16 @@ import { useEffect, useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import TransferModal from './TransferModal';
 import TransactionHistory from './TransactionHistory';
-import SpotlightCard from './SpotlightCard';
-import { useTheme } from '../contexts/ThemeContext';
-import { useBalance } from '../contexts/BalanceContext';
-import { useWebAuthnConnection } from '../lib/hooks/useWebAuthnConnection';
-import { useCopyToClipboard } from '../lib/hooks/useCopyToClipboard';
-import { getAddressExplorerUrl, getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
-import { FAUCET_URL } from '../lib/constants/urls';
-import BalanceDisplay from './shared/BalanceDisplay';
-import AlertMessage from './ui/AlertMessage';
-import LoadingSpinner from './ui/LoadingSpinner';
+import SpotlightCard from '../features/SpotlightCard';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useBalance } from '../../contexts/BalanceContext';
+import { useWebAuthnConnection } from '../../lib/hooks/useWebAuthnConnection';
+import { useCopyToClipboard } from '../../lib/hooks/useCopyToClipboard';
+import { getAddressExplorerUrl, getTransactionExplorerUrl } from '../../lib/utils/explorerUrls';
+import { FAUCET_URL } from '../../lib/constants/urls';
+import BalanceDisplay from '../shared/BalanceDisplay';
+import AlertMessage from '../ui/AlertMessage';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 export default function WalletPanelEnhanced() {
   const { smartWalletPubkey, isConnected, disconnect, error: walletError } = useWallet();

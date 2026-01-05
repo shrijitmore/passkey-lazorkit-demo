@@ -101,12 +101,12 @@ export function TransferButton() {
       // 2. Sign and Send (using useTransactionSigning hook for automatic retry)
       // Note: The actual codebase uses useTransactionSigning hook which handles
       // credential refresh and retry logic automatically
-      const { signTransaction } = useTransactionSigning();
       const txSignature = await signTransaction({
         instructions: [instruction],
       });
       
       // Alternative: Direct usage (simpler but no automatic retry)
+      // const { signAndSendTransaction } = useWallet();
       // const txSignature = await signAndSendTransaction({
       //   instructions: [instruction],
       // });
@@ -273,19 +273,18 @@ Here's a complete example that checks balance before sending (based on the actua
 import { useEffect, useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import {
-  Connection,
   SystemProgram,
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
-
-const RPC_URL = 'https://api.devnet.solana.com';
+import { getConnection } from '../lib/rpc/connection';
+import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
 
 export default function TransactionExample() {
   const {
     smartWalletPubkey,
     isConnected,
-    signAndSendTransaction,
   } = useWallet();
+  const { signTransaction } = useTransactionSigning();
 
   const [balance, setBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
@@ -293,7 +292,7 @@ export default function TransactionExample() {
   const [signature, setSignature] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const connection = new Connection(RPC_URL, 'confirmed');
+  const connection = getConnection();
 
   // Fetch balance when wallet connects
   useEffect(() => {
@@ -323,7 +322,7 @@ export default function TransactionExample() {
   };
 
   const handleSend = async () => {
-    if (!smartWalletPubkey || !signAndSendTransaction || balance === null || balance === 0) {
+    if (!smartWalletPubkey || balance === null || balance === 0) {
       return;
     }
 
@@ -342,7 +341,6 @@ export default function TransactionExample() {
       // Sign and send transaction using useTransactionSigning hook
       // This hook handles signing with passkey, automatic credential refresh, and retry logic
       // Note: The actual codebase uses useTransactionSigning for better error handling
-      const { signTransaction } = useTransactionSigning();
       const txSignature = await signTransaction({
         instructions: [instruction],
       });

@@ -38,14 +38,14 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
 } from '@solana/web3.js';
-import { getConnection } from '../lib/rpc/connection';
-import { WALLET_EVENTS, dispatchWalletEvent } from '../lib/events/walletEvents';
-import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
-import { parseError } from '../lib/utils/errorHandling';
-import { useBalance } from '../contexts/BalanceContext';
-import AlertMessage from './ui/AlertMessage';
-import TransactionStatus from './ui/TransactionStatus';
-import LoadingSpinner from './ui/LoadingSpinner';
+import { getConnection } from '../../lib/rpc/connection';
+import { WALLET_EVENTS, dispatchWalletEvent } from '../../lib/events/walletEvents';
+import { useTransactionSigning } from '../../lib/hooks/useTransactionSigning';
+import { parseError } from '../../lib/utils/errorHandling';
+import { useBalance } from '../../contexts/BalanceContext';
+import AlertMessage from '../ui/AlertMessage';
+import TransactionStatus from '../ui/TransactionStatus';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface TransferModalProps {
   isOpen: boolean;

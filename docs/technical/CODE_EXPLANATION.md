@@ -61,10 +61,13 @@ export default function Providers({ children }: { children: ReactNode }) {
 **How it works**:
 
 ```typescript
+// In the actual codebase, URLs are imported from app/lib/constants/urls.ts
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
+
 <LazorkitProvider
-  rpcUrl="https://api.devnet.solana.com"
-  portalUrl="https://portal.lazor.sh"
-  paymasterConfig={{ paymasterUrl: "https://kora.devnet.lazorkit.com" }}
+  rpcUrl={RPC_URL}
+  portalUrl={PORTAL_URL}
+  paymasterConfig={{ paymasterUrl: PAYMASTER_URL }}
   {...({
     isDebug: true,
     network: 'devnet',
@@ -78,20 +81,29 @@ export default function Providers({ children }: { children: ReactNode }) {
    - Connects to Solana blockchain
    - Used to query balance, send transactions, etc.
    - We use Devnet for testing
+   - In the codebase: Imported from `app/lib/constants/urls.ts`
 
 2. **portalUrl** (optional):
    - LazorKit's authentication portal
    - Handles WebAuthn passkey creation/authentication
    - Default: `https://portal.lazor.sh`
+   - In the codebase: Imported from `app/lib/constants/urls.ts`
 
 3. **paymasterConfig** (optional):
    - Paymaster configuration (may sponsor fees for certain transaction types)
    - **Note**: Native SOL transfers typically use wallet-paid fees
    - Official Devnet: `https://kora.devnet.lazorkit.com`
+   - In the codebase: Imported from `app/lib/constants/urls.ts`
 
-4. **passkey** (optional):
-   - Enables passkey authentication
-   - Set to `true` to use WebAuthn passkeys
+4. **isDebug** (optional):
+   - Enables debug logging for development
+   - Set to `true` in this codebase
+   - Uses type assertion `as any` because it may not be in TypeScript definitions yet
+
+5. **network** (optional):
+   - Sets the Solana network ('devnet', 'mainnet', etc.)
+   - Set to 'devnet' in this codebase
+   - Uses type assertion `as any` because it may not be in TypeScript definitions yet
 
 **Reference**: [LazorkitProvider API](https://docs.lazorkit.com/react-sdk/provider)
 
@@ -122,7 +134,7 @@ const {
 - **connect()**: Initiates wallet connection. Creates/authenticates passkey.
 - **disconnect()**: Clears session and disconnects wallet.
 - **error**: Any errors from connection or transactions.
-- **signAndSendTransaction()**: Sends transactions with passkey signing (fees paid from wallet for native SOL transfers).
+- **useTransactionSigning()**: Hook that wraps transaction signing with automatic credential refresh and retry logic. Provides `signTransaction()` method.
 - **signMessage()**: Signs messages without sending transactions.
 
 **Reference**: [useWallet API](https://docs.lazorkit.com/react-sdk/use-wallet)
@@ -175,7 +187,12 @@ const fetchBalance = async () => {
 #### Transaction Sending
 
 ```typescript
+import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
+import { parseError } from '../lib/utils/errorHandling';
+
 const handleSendTransaction = async () => {
+  const { signTransaction } = useTransactionSigning();
+  
   // 1. Create instruction
   const instruction = SystemProgram.transfer({
     fromPubkey: smartWalletPubkey,
@@ -183,9 +200,13 @@ const handleSendTransaction = async () => {
     lamports: 0.01 * LAMPORTS_PER_SOL,
   });
 
-  // 2. Sign and send
-  const signature = await signAndSendTransaction({
+  // 2. Sign and send (using useTransactionSigning hook for automatic retry)
+  const signature = await signTransaction({
     instructions: [instruction],
+    onError: (error) => {
+      const errorInfo = parseError(error);
+      console.error('Transaction error:', errorInfo.userFriendly || errorInfo.message);
+    },
   });
 };
 ```
@@ -196,14 +217,19 @@ const handleSendTransaction = async () => {
    - `SystemProgram.transfer()` creates a Solana instruction
    - Defines: transfer 0.01 SOL from wallet to itself (demo)
 
-2. **Call signAndSendTransaction**:
+2. **Call signTransaction (from useTransactionSigning hook)**:
+   - The hook wraps LazorKit's `signAndSendTransaction` with automatic credential refresh
+   - If passkey credential error occurs, it automatically:
+     - Clears caches
+     - Disconnects and reconnects wallet
+     - Retries the transaction
    - LazorKit prompts for biometric (Face ID/Touch ID)
    - Passkey signs transaction in Secure Enclave
    - Transaction fees are paid from wallet balance (native SOL transfers)
    - Transaction submitted to Solana network
    - Returns transaction signature
    
-   **Note**: For native SOL transfers, fees are paid by the wallet. Paymaster may sponsor other transaction types, but native SOL transfers typically use wallet-paid fees.
+   **Note**: For native SOL transfers, fees are paid by the wallet. Paymaster may sponsor other transaction types, but native SOL transfers typically use wallet-paid fees. The `useTransactionSigning` hook handles passkey credential inconsistencies automatically.
 
 3. **Result**:
    - Transaction signature displayed

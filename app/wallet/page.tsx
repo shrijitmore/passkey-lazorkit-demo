@@ -23,7 +23,7 @@
  */
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import { LAMPORTS_PER_SOL, SystemProgram, PublicKey } from '@solana/web3.js';
 import { getConnection } from '../lib/rpc/connection';
@@ -60,9 +60,24 @@ export default function WalletPage() {
 
   const walletAddress = useMemo(() => smartWalletPubkey?.toString() || '', [smartWalletPubkey]);
   const usdEquivalent = useMemo(() => (balance !== null ? (balance * 150).toFixed(2) : '0.00'), [balance]);
+  const [qrSize, setQrSize] = useState(232);
   
   // Use copy to clipboard hook
   const { copy: copyAddress, copied } = useCopyToClipboard();
+
+  // Calculate responsive QR code size
+  useEffect(() => {
+    const updateQrSize = () => {
+      if (typeof window !== 'undefined') {
+        const maxSize = Math.min(232, window.innerWidth - 120);
+        setQrSize(Math.max(200, maxSize));
+      }
+    };
+    
+    updateQrSize();
+    window.addEventListener('resize', updateQrSize);
+    return () => window.removeEventListener('resize', updateQrSize);
+  }, []);
 
   const handleSend = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,9 +199,9 @@ export default function WalletPage() {
 
   return (
     <AppLayout>
-      <div className="mb-6 md:mb-8">
-        <h1 className="mb-2 text-2xl font-bold text-foreground md:text-3xl">Wallet</h1>
-        <p className="text-sm text-muted-foreground md:text-base">Send and receive SOL on Solana Devnet</p>
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <h1 className="mb-2 text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Wallet</h1>
+        <p className="text-xs sm:text-sm md:text-base text-muted-foreground">Send and receive SOL on Solana Devnet</p>
       </div>
 
       {/* Balance Card */}
@@ -232,17 +247,17 @@ export default function WalletPage() {
       {/* Send/Receive/Verify Tabs */}
       <Tabs defaultValue="send" className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-muted">
-          <TabsTrigger value="send" className="flex items-center gap-2 data-[state=active]:bg-background">
-            <Send className="h-4 w-4" />
-            Send
+          <TabsTrigger value="send" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-background px-2 sm:px-4">
+            <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Send</span>
           </TabsTrigger>
-          <TabsTrigger value="receive" className="flex items-center gap-2 data-[state=active]:bg-background">
-            <Download className="h-4 w-4" />
-            Receive
+          <TabsTrigger value="receive" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-background px-2 sm:px-4">
+            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Receive</span>
           </TabsTrigger>
-          <TabsTrigger value="verify" className="flex items-center gap-2 data-[state=active]:bg-background">
-            <Shield className="h-4 w-4" />
-            Verify
+          <TabsTrigger value="verify" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-background px-2 sm:px-4">
+            <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Verify</span>
           </TabsTrigger>
         </TabsList>
 
@@ -290,19 +305,19 @@ export default function WalletPage() {
                 </div>
 
                 {error && (
-                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
-                    <p className="text-sm text-destructive">{error}</p>
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-destructive break-words">{error}</p>
                   </div>
                 )}
 
                 {txStatus === 'success' && txSignature && (
-                  <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3">
-                    <p className="mb-2 text-sm font-medium text-green-400">Transaction Successful!</p>
+                  <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3 sm:p-4">
+                    <p className="mb-2 text-xs sm:text-sm font-medium text-green-400">Transaction Successful!</p>
                     <a
                       href={explorerUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-400 hover:underline"
+                      className="text-xs text-blue-400 hover:underline break-all"
                     >
                       View on Explorer
                     </a>
@@ -346,27 +361,28 @@ export default function WalletPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="receive" className="mt-6">
+        <TabsContent value="receive" className="mt-4 sm:mt-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-foreground">Receive SOL</CardTitle>
-              <CardDescription>Share this address to receive SOL</CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg text-foreground">Receive SOL</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Share this address to receive SOL</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
               {/* QR Code */}
               <div className="flex justify-center">
-                <div className="rounded-lg bg-white p-4 shadow-md">
+                <div className="rounded-lg bg-white p-3 sm:p-4 shadow-md max-w-full">
                   {walletAddress ? (
                     <QRCodeSVG
                       value={walletAddress}
-                      size={232}
+                      size={qrSize}
                       level="H"
                       includeMargin={false}
                       fgColor="#000000"
                       bgColor="#ffffff"
+                      className="max-w-full h-auto"
                     />
                   ) : (
-                    <div className="flex h-[232px] w-[232px] items-center justify-center">
+                    <div className="flex h-[200px] w-[200px] sm:h-[232px] sm:w-[232px] items-center justify-center">
                       <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                     </div>
                   )}
@@ -375,15 +391,19 @@ export default function WalletPage() {
 
               {/* Wallet Address */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Your Wallet Address</label>
+                <label className="text-xs sm:text-sm font-medium text-foreground">Your Wallet Address</label>
                 <div className="flex items-center gap-2">
-                  <Input value={walletAddress} readOnly className="font-mono text-sm" />
+                  <Input 
+                    value={walletAddress} 
+                    readOnly 
+                    className="font-mono text-xs sm:text-sm px-3 sm:px-4 py-2.5 sm:py-3" 
+                  />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => copyAddress(walletAddress)}
-                    className="shrink-0"
+                    className="shrink-0 h-10 w-10 sm:h-11 sm:w-11"
                   >
                     {copied ? (
                       <Check className="h-4 w-4 text-green-400" />
@@ -431,8 +451,8 @@ export default function WalletPage() {
                 </div>
 
                 {signError && (
-                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
-                    <p className="text-sm text-destructive">{signError}</p>
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-destructive break-words">{signError}</p>
                   </div>
                 )}
 

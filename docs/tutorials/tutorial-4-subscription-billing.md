@@ -84,26 +84,35 @@ Create a subscription with passkey authentication:
 
 ```typescript
 // app/components/SubscriptionDemo.tsx
+import { useState, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { SystemProgram, PublicKey, LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
+import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { getConnection } from '../lib/rpc/connection';
+import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
+import { parseError } from '../lib/utils/errorHandling';
 import { addSubscription } from '../lib/subscription/storage';
 import { generateSubscriptionId, calculateNextBillingDate } from '../lib/subscription/utils';
+import { SUBSCRIPTION_PLANS } from '../lib/constants/subscriptionPlans';
+import type { Subscription, SubscriptionPlanId } from '../lib/subscription/types';
 
 // Replace with your actual merchant wallet address
 const MERCHANT_WALLET = new PublicKey('YOUR_MERCHANT_WALLET_ADDRESS');
 // Note: In this demo, the merchant wallet is: 9T2zGaNBr7bKBBEvQ9AAGNwCG3iL4jVF2Z8TipqikpKG
-const RPC_URL = 'https://api.devnet.solana.com';
 
 export default function SubscriptionDemo() {
-  const { smartWalletPubkey, signAndSendTransaction, isConnected } = useWallet();
+  const { smartWalletPubkey, isConnected } = useWallet();
+  const { signTransaction } = useTransactionSigning();
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubscribe = async (planId: string) => {
-    if (!isConnected || !smartWalletPubkey || !signAndSendTransaction) {
+  const handleSubscribe = useCallback(async (planId: string) => {
+    if (!isConnected || !smartWalletPubkey) {
+      setError('Please connect your wallet first');
       return;
     }
 
     setIsSubscribing(true);
+    setError(null);
 
     try {
       const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
@@ -116,13 +125,17 @@ export default function SubscriptionDemo() {
         lamports: plan.price * LAMPORTS_PER_SOL,
       });
 
-      // Sign and send with passkey
-      const txSignature = await signAndSendTransaction({
+      // Sign and send with passkey (using useTransactionSigning hook for automatic retry)
+      const txSignature = await signTransaction({
         instructions: [instruction],
+        onError: (error) => {
+          const errorInfo = parseError(error);
+          setError(errorInfo.userFriendly || errorInfo.message);
+        },
       });
 
       // Wait for confirmation
-      const connection = new Connection(RPC_URL, 'confirmed');
+      const connection = getConnection();
       await connection.confirmTransaction(txSignature, 'confirmed');
 
       // Create subscription record
@@ -241,7 +254,7 @@ For demo purposes, you can simulate recurring payments:
 ```typescript
 // app/components/RecurringPaymentSimulator.tsx
 const handleSimulatePayment = async (subscription: Subscription) => {
-  if (!isConnected || !smartWalletPubkey || !signAndSendTransaction) return;
+  if (!isConnected || !smartWalletPubkey) return;
 
   try {
     // Check if billing is due
@@ -256,13 +269,13 @@ const handleSimulatePayment = async (subscription: Subscription) => {
       lamports: subscription.amount * LAMPORTS_PER_SOL,
     });
 
-    // Sign and send
-    const txSignature = await signAndSendTransaction({
+    // Sign and send (using useTransactionSigning hook for automatic retry)
+    const txSignature = await signTransaction({
       instructions: [instruction],
     });
 
     // Wait for confirmation
-    const connection = new Connection(RPC_URL, 'confirmed');
+    const connection = getConnection();
     await connection.confirmTransaction(txSignature, 'confirmed');
 
     // Add payment record and update next billing date

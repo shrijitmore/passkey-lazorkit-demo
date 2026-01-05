@@ -129,7 +129,7 @@ Then in your root layout:
 ```typescript
 // app/layout.tsx
 import type { ReactNode } from 'react';
-import Providers from './components/Providers';
+import Providers from './components/providers/Providers';
 import './globals.css';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
