@@ -1,81 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { SystemProgram, PublicKey, LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
-import { Check, Loader2 } from 'lucide-react';
+import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { getConnection } from '../lib/rpc/connection';
+import { Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import AlertMessage from './ui/AlertMessage';
+import LoadingSpinner from './ui/LoadingSpinner';
 import { addSubscription, getSubscriptions } from '../lib/subscription/storage';
 import { generateSubscriptionId, calculateNextBillingDate } from '../lib/subscription/utils';
 import type { Subscription, SubscriptionPlanId } from '../lib/subscription/types';
 import { WALLET_EVENTS, dispatchWalletEvent } from '../lib/events/walletEvents';
-
-interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: number;
-  interval: string;
-  features: string[];
-  popular?: boolean;
-}
-
-const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-  {
-    id: 'basic',
-    name: 'Basic',
-    price: 0.1,
-    interval: 'month',
-    features: [
-      'Passkey authentication',
-      'Basic smart wallet',
-      '10 transactions/month',
-      'Community support',
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 0.5,
-    interval: 'month',
-    features: [
-      'Everything in Basic',
-      'Unlimited transactions',
-      'Priority support',
-      'Advanced analytics',
-      'API access',
-    ],
-    popular: true,
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 2.0,
-    interval: 'month',
-    features: [
-      'Everything in Pro',
-      'Custom integration',
-      'Dedicated support',
-      'SLA guarantee',
-      'White-label option',
-    ],
-  },
-];
+import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
+import { parseError } from '../lib/utils/errorHandling';
+import { SUBSCRIPTION_PLANS } from '../lib/constants/subscriptionPlans';
 
 // Merchant wallet address - receives subscription payments
 const MERCHANT_WALLET = new PublicKey('9T2zGaNBr7bKBBEvQ9AAGNwCG3iL4jVF2Z8TipqikpKG');
-const RPC_URL = 'https://api.devnet.solana.com';
 
 export default function SubscriptionDemo() {
-  const { isConnected, smartWalletPubkey, signAndSendTransaction } = useWallet();
+  const { isConnected, smartWalletPubkey } = useWallet();
+  const { signTransaction } = useTransactionSigning();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleSubscribe = async (planId: string) => {
-    if (!isConnected || !smartWalletPubkey || !signAndSendTransaction) {
+  const handleSubscribe = useCallback(async (planId: string) => {
+    if (!isConnected || !smartWalletPubkey) {
       setError('Please connect your wallet first');
       return;
     }
@@ -86,8 +41,14 @@ export default function SubscriptionDemo() {
       (sub) => sub.planId === planId && sub.status === 'active'
     );
     
+    const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
     if (activeSubscription) {
-      setError(`You already have an active ${SUBSCRIPTION_PLANS.find(p => p.id === planId)?.name} subscription`);
+      setError(`You already have an active ${plan?.name} subscription`);
+      return;
+    }
+
+    if (!plan) {
+      setError('Invalid plan selected');
       return;
     }
 
@@ -97,11 +58,6 @@ export default function SubscriptionDemo() {
     setSuccessMessage(null);
 
     try {
-      const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
-      if (!plan) {
-        throw new Error('Invalid plan selected');
-      }
-
       // Create transaction instruction for subscription payment
       const instruction = SystemProgram.transfer({
         fromPubkey: smartWalletPubkey,
@@ -109,13 +65,17 @@ export default function SubscriptionDemo() {
         lamports: plan.price * LAMPORTS_PER_SOL,
       });
 
-      // Sign and send transaction with passkey
-      const txSignature = await signAndSendTransaction({
+      // Sign and send transaction with automatic credential refresh
+      const txSignature = await signTransaction({
         instructions: [instruction],
+        onError: (error) => {
+          const errorInfo = parseError(error);
+          setError(errorInfo.userFriendly || errorInfo.message);
+        },
       });
 
       // Wait for confirmation
-      const connection = new Connection(RPC_URL, 'confirmed');
+      const connection = getConnection();
       await connection.confirmTransaction(txSignature, 'confirmed');
 
       // Create subscription record
@@ -165,36 +125,42 @@ export default function SubscriptionDemo() {
         setSuccessMessage(null);
       }, 5000);
     } catch (err: unknown) {
-      const errorObj = err as { message?: string };
-      setError(errorObj?.message || 'Subscription failed. Please try again.');
+      const errorInfo = parseError(err);
+      setError(errorInfo.userFriendly || errorInfo.message || 'Subscription failed. Please try again.');
       console.error('Subscription error:', err);
     } finally {
       setIsSubscribing(false);
     }
-  };
+  }, [isConnected, smartWalletPubkey, signTransaction]);
 
   return (
     <div className="w-full px-4 sm:px-0" data-testid="subscription-demo">
+      {/* Error message display */}
       {error && (
-        <div className="mb-4 sm:mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-destructive break-words">{error}</p>
-        </div>
+        <AlertMessage
+          variant="error"
+          message={error}
+          onClose={() => setError(null)}
+        />
       )}
 
+      {/* Success message display */}
       {successMessage && (
-        <div className="mb-4 sm:mb-6 rounded-lg border border-green-500/50 bg-green-500/10 p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-green-400 break-words">{successMessage}</p>
-          <a
-            href="#subscriptions"
-            className="mt-2 inline-block text-xs text-blue-400 underline hover:text-blue-300"
-          >
-            View My Subscriptions →
-          </a>
-        </div>
+        <AlertMessage
+          variant="success"
+          message={successMessage}
+          onClose={() => setSuccessMessage(null)}
+          actionLink={{
+            href: '#subscriptions',
+            text: 'View My Subscriptions',
+          }}
+        />
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {SUBSCRIPTION_PLANS.map((plan) => (
+        {SUBSCRIPTION_PLANS.map((plan) => {
+          const isSelected = selectedPlan === plan.id;
+          return (
           <Card
             key={plan.id}
             className={`relative flex h-full flex-col overflow-hidden transition-all hover:shadow-lg ${
@@ -243,9 +209,9 @@ export default function SubscriptionDemo() {
                   className="w-full text-sm sm:text-base py-3 sm:py-4"
                   data-testid={`subscribe-${plan.id}-btn`}
                 >
-                  {isSubscribing && selectedPlan === plan.id ? (
+                  {isSubscribing && isSelected ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingSpinner size="sm" color="white" />
                       <span className="ml-2">Processing...</span>
                     </>
                   ) : (
@@ -255,7 +221,8 @@ export default function SubscriptionDemo() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {/* How It Works */}

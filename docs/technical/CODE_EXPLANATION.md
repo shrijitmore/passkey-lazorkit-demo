@@ -65,7 +65,10 @@ export default function Providers({ children }: { children: ReactNode }) {
   rpcUrl="https://api.devnet.solana.com"
   portalUrl="https://portal.lazor.sh"
   paymasterConfig={{ paymasterUrl: "https://kora.devnet.lazorkit.com" }}
-  passkey={true}
+  {...({
+    isDebug: true,
+    network: 'devnet',
+  } as any)}
 >
 ```
 

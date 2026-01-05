@@ -53,11 +53,7 @@ According to the [official documentation](https://docs.lazorkit.com/react-sdk/ge
 
 import { LazorkitProvider } from '@lazorkit/wallet';
 import { useMemo, type ReactNode } from 'react';
-
-// Default Devnet configuration from LazorKit docs
-const RPC_URL = 'https://api.devnet.solana.com';
-const PORTAL_URL = 'https://portal.lazor.sh';
-const PAYMASTER_URL = 'https://kora.devnet.lazorkit.com'; // Official Devnet paymaster
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
 
 export default function LazorkitProviderWrapper({
   children,
@@ -77,13 +73,18 @@ export default function LazorkitProviderWrapper({
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
-      passkey={true} // Enable passkey authentication
+      {...({
+        isDebug: true,
+        network: 'devnet',
+      } as any)}
     >
       {children}
     </LazorkitProvider>
   );
 }
 ```
+
+**Note:** In the actual codebase, URLs are centralized in `app/lib/constants/urls.ts` for easier maintenance. The `isDebug` and `network` props use a type assertion (`as any`) because they may not be in the TypeScript definitions yet but are supported at runtime.
 
 **Key Configuration Options** (from [LazorkitProvider API](https://docs.lazorkit.com/react-sdk/provider)):
 
@@ -93,6 +94,10 @@ export default function LazorkitProviderWrapper({
   - `paymasterUrl`: The API endpoint for the paymaster
   - `apiKey`: Your API key if the service requires one
   - **Note**: Native SOL transfers typically use wallet-paid fees
+- `isDebug` (optional): Enables debug logging for development (used in this codebase)
+- `network` (optional): Sets the Solana network ('devnet', 'mainnet', etc.)
+
+**Note:** In this codebase, URLs are centralized in `app/lib/constants/urls.ts`, and `isDebug`/`network` use a type assertion (`as any`) as they may not be in TypeScript definitions yet.
 
 ## Step 4: Wrap Your App with the Provider
 
@@ -272,12 +277,14 @@ await connect({
 
 ## Step 10: Testing the Integration
 
-1. Run your development server:
+1. Run your development server with HTTPS (required for transactions):
    ```bash
-   npm run dev
+   npm run dev:https
    ```
 
-2. Open your browser and navigate to the app
+2. Open your browser and navigate to [https://localhost:3000](https://localhost:3000)
+   
+   **First time:** Accept the browser security warning for the self-signed certificate (safe for local development)
 
 3. Click "Connect Wallet"
 

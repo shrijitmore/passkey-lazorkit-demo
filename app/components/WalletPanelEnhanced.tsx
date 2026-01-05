@@ -1,169 +1,73 @@
+/**
+ * WalletPanelEnhanced Component
+ * 
+ * A comprehensive example demonstrating LazorKit SDK integration:
+ * - Passkey authentication (connect/disconnect)
+ * - Balance display and management
+ * - SOL transfers with passkey signing
+ * - Transaction history
+ * - Copy wallet address functionality
+ * 
+ * This component showcases the core LazorKit features in a real-world UI.
+ * 
+ * Key LazorKit Features Used:
+ * - useWallet() hook for wallet state and methods
+ * - connect() for passkey authentication
+ * - smartWalletPubkey for wallet address
+ * - signAndSendTransaction() for transactions (via TransferModal)
+ * 
+ * @example
+ * ```tsx
+ * <WalletPanelEnhanced />
+ * ```
+ */
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import {
-  Connection,
-  LAMPORTS_PER_SOL,
-} from '@solana/web3.js';
 import TransferModal from './TransferModal';
 import TransactionHistory from './TransactionHistory';
 import SpotlightCard from './SpotlightCard';
 import { useTheme } from '../contexts/ThemeContext';
-import { WALLET_EVENTS, listenWalletEvent } from '../lib/events/walletEvents';
-
-const RPC_URL = 'https://api.devnet.solana.com';
-const EXPLORER_URL = 'https://explorer.solana.com';
-const FAUCET_URL = 'https://faucet.solana.com';
+import { useBalance } from '../contexts/BalanceContext';
+import { useWebAuthnConnection } from '../lib/hooks/useWebAuthnConnection';
+import { useCopyToClipboard } from '../lib/hooks/useCopyToClipboard';
+import { getAddressExplorerUrl, getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
+import { FAUCET_URL } from '../lib/constants/urls';
+import BalanceDisplay from './shared/BalanceDisplay';
+import AlertMessage from './ui/AlertMessage';
+import LoadingSpinner from './ui/LoadingSpinner';
 
 export default function WalletPanelEnhanced() {
-  const {
-    smartWalletPubkey,
-    isConnected,
-    isConnecting,
-    connect,
-    disconnect,
-    error,
-  } = useWallet();
-
+  const { smartWalletPubkey, isConnected, disconnect, error: walletError } = useWallet();
+  const { connect, isConnecting, error: connectionError } = useWebAuthnConnection();
   const { theme } = useTheme();
-  const [balance, setBalance] = useState<number | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { balance, isLoadingBalance, refreshBalance } = useBalance();
+  const { copy: copyAddress, copied } = useCopyToClipboard();
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [lastTxSignature, setLastTxSignature] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [connectError, setConnectError] = useState<string | null>(null);
   const [txHistoryRefreshTrigger, setTxHistoryRefreshTrigger] = useState(0);
-  
-  const prevIsConnectedRef = useRef(isConnected);
-  const prevPubkeyRef = useRef<string | null>(null);
-
-  const fetchBalance = useCallback(async () => {
-    if (!smartWalletPubkey) return;
-    setIsLoadingBalance(true);
-    try {
-      const connection = new Connection(RPC_URL, 'confirmed');
-      const balance = await connection.getBalance(smartWalletPubkey);
-      const balanceInSol = balance / LAMPORTS_PER_SOL;
-      setBalance(prev => {
-        if (prev === null) return balanceInSol;
-        const prevRounded = Math.round(prev * 10000) / 10000;
-        const newRounded = Math.round(balanceInSol * 10000) / 10000;
-        return prevRounded === newRounded ? prev : balanceInSol;
-      });
-    } catch (err) {
-      // Silently handle balance fetch errors
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  }, [smartWalletPubkey]);
-
-  // Fetch balance when wallet connects
-  useEffect(() => {
-    const pubkeyString = smartWalletPubkey?.toString() || null;
-    const isConnectedChanged = prevIsConnectedRef.current !== isConnected;
-    const pubkeyChanged = prevPubkeyRef.current !== pubkeyString;
-    
-    if (isConnectedChanged || pubkeyChanged) {
-      prevIsConnectedRef.current = isConnected;
-      prevPubkeyRef.current = pubkeyString;
-      
-      if (isConnected && smartWalletPubkey) {
-        fetchBalance();
-        // Reduced polling interval to 30 seconds (fallback)
-        const interval = setInterval(() => {
-          fetchBalance();
-        }, 30000);
-        return () => clearInterval(interval);
-      } else {
-        setBalance(null);
-        setLastTxSignature(null);
-        setShowSuccess(false);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, smartWalletPubkey]); // fetchBalance is stable via useCallback
-
-  // Listen for transaction completed events to refresh balance immediately
-  useEffect(() => {
-    if (!isConnected || !smartWalletPubkey) return;
-
-    const unsubscribe = listenWalletEvent(
-      WALLET_EVENTS.TRANSACTION_COMPLETED,
-      () => {
-        // Refresh balance immediately when transaction completes
-        fetchBalance();
-      }
-    );
-
-    return unsubscribe;
-  }, [isConnected, smartWalletPubkey, fetchBalance]);
-
-  const copyAddress = async () => {
-    if (!smartWalletPubkey) return;
-    try {
-      await navigator.clipboard.writeText(smartWalletPubkey.toString());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Silently handle copy errors
-    }
-  };
 
   const handleTransferSuccess = (signature: string) => {
     setLastTxSignature(signature);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 5000);
-    fetchBalance();
+    refreshBalance();
     setTimeout(() => {
       setTxHistoryRefreshTrigger(prev => prev + 1);
     }, 3000);
   };
 
+  // Handle connect using the hook (validation is built-in)
   const handleConnect = async () => {
-    setConnectError(null);
-    
-    // Check if WebAuthn is supported
-    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-      setConnectError('WebAuthn is not supported in this browser. Please use a modern browser like Chrome, Safari, Firefox, or Edge.');
-      return;
-    }
-
-    // Check if we're on HTTPS or localhost (required for WebAuthn)
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      setConnectError('WebAuthn requires HTTPS. Please use HTTPS or localhost.');
-      return;
-    }
-
-    try {
-      await connect();
-      setConnectError(null);
-    } catch (err: unknown) {
-      let errorMessage = 'Failed to connect wallet';
-      
-      const errorObj = err as { message?: string; name?: string };
-
-      if (errorObj?.message?.includes('passkeyPublicKey')) {
-        errorMessage = 'Passkey creation failed. Please ensure:\n• Your device supports biometric authentication (Face ID, Touch ID, Windows Hello)\n• You approve the biometric prompt when it appears\n• Your browser supports WebAuthn\n• You are not blocking the authentication prompt';
-      } else if (errorObj?.message?.includes('NotAllowedError') || errorObj?.name === 'NotAllowedError') {
-        errorMessage = 'Biometric authentication was canceled or denied. Please try again and approve the prompt.';
-      } else if (errorObj?.message?.includes('NotSupportedError') || errorObj?.name === 'NotSupportedError') {
-        errorMessage = 'Your device or browser does not support passkeys. Please use a device with Face ID, Touch ID, or Windows Hello.';
-      } else if (errorObj?.message?.includes('InvalidStateError') || errorObj?.name === 'InvalidStateError') {
-        errorMessage = 'A passkey already exists. Please try disconnecting and reconnecting.';
-      } else if (errorObj?.message) {
-        errorMessage = errorObj.message;
-      }
-      
-      setConnectError(errorMessage);
-    }
+    await connect();
   };
 
   if (isConnecting) {
     return (
       <div className="flex flex-col items-center gap-4 glass rounded-2xl p-8" data-testid="connecting-state">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
+        <LoadingSpinner size="lg" color="purple" />
         <p className="text-gray-300">Connecting with passkey…</p>
         <p className="text-sm text-gray-500">Please authenticate with your device</p>
       </div>
@@ -213,21 +117,12 @@ export default function WalletPanelEnhanced() {
               </div>
             </div>
 
-            {(error || connectError) && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 w-full" data-testid="connection-error">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-red-400 mb-1">Connection Error</p>
-                    <p className="text-xs text-red-300 whitespace-pre-line">{connectError || error?.message || 'Unknown error'}</p>
-                    <p className="text-xs text-red-400/80 mt-2">
-                      💡 Tip: Make sure you approve the biometric prompt (Face ID, Touch ID, or Windows Hello) when it appears.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            {/* Connection error display */}
+            {(walletError || connectionError) && (
+              <AlertMessage
+                variant="error"
+                message={connectionError || walletError?.message || 'Unknown connection error'}
+              />
             )}
           </div>
         </div>
@@ -236,7 +131,7 @@ export default function WalletPanelEnhanced() {
   }
 
   const walletAddress = smartWalletPubkey?.toString() || '';
-  const explorerLink = `${EXPLORER_URL}/address/${walletAddress}?cluster=devnet`;
+  const explorerLink = walletAddress ? getAddressExplorerUrl(walletAddress) : '';
   const hasBalance = balance !== null && balance > 0;
 
   return (
@@ -253,7 +148,7 @@ export default function WalletPanelEnhanced() {
             <div className="flex-1">
               <p className="font-semibold text-white">Transaction Successful!</p>
               <a
-                href={`${EXPLORER_URL}/tx/${lastTxSignature}?cluster=devnet`}
+                href={lastTxSignature ? getTransactionExplorerUrl(lastTxSignature) : '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-purple-400 hover:text-purple-300 inline-flex items-center gap-1"
@@ -297,7 +192,7 @@ export default function WalletPanelEnhanced() {
             <p className="text-sm text-secondary">Total Balance</p>
             {isLoadingBalance && balance !== null && (
               <span className="text-xs text-primary flex items-center gap-1">
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                <LoadingSpinner size="sm" color="primary" />
                 Updating...
               </span>
             )}
@@ -305,7 +200,7 @@ export default function WalletPanelEnhanced() {
           <div className="flex items-end gap-3">
             {isLoadingBalance && balance === null ? (
               <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
+                <LoadingSpinner size="md" color="primary" />
                 <p className="text-4xl font-bold gradient-text">0.0000</p>
               </div>
             ) : (
@@ -317,7 +212,30 @@ export default function WalletPanelEnhanced() {
               </>
             )}
           </div>
-          <p className="text-xs text-secondary mt-2">Solana Devnet</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-secondary">Solana Devnet</p>
+            <button
+              onClick={refreshBalance}
+              disabled={isLoadingBalance}
+              className="p-1.5 glass rounded-lg hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh balance"
+              aria-label="Refresh balance"
+            >
+              <svg
+                className={`w-4 h-4 text-primary ${isLoadingBalance ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Address */}
@@ -329,7 +247,7 @@ export default function WalletPanelEnhanced() {
             </p>
             <div className="flex gap-2">
               <button
-                onClick={copyAddress}
+                onClick={() => copyAddress(walletAddress)}
                 className="px-3 py-2 glass rounded-lg hover:bg-white/10 transition-all text-sm"
                 data-testid="copy-address-btn"
               >

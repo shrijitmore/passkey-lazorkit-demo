@@ -71,14 +71,12 @@ Based on the [official example](https://docs.lazorkit.com/react-sdk/getting-star
 
 import { useState } from 'react';
 import { useWallet } from '@lazorkit/wallet';
+import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
 import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 export function TransferButton() {
-  const {
-    signAndSendTransaction,
-    smartWalletPubkey,
-    isConnected,
-  } = useWallet();
+  const { smartWalletPubkey, isConnected } = useWallet();
+  const { signTransaction } = useTransactionSigning();
 
   const [isSending, setIsSending] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
@@ -100,10 +98,18 @@ export function TransferButton() {
         lamports: 0.1 * LAMPORTS_PER_SOL,
       });
 
-      // 2. Sign and Send (from official docs)
-      const txSignature = await signAndSendTransaction({
+      // 2. Sign and Send (using useTransactionSigning hook for automatic retry)
+      // Note: The actual codebase uses useTransactionSigning hook which handles
+      // credential refresh and retry logic automatically
+      const { signTransaction } = useTransactionSigning();
+      const txSignature = await signTransaction({
         instructions: [instruction],
       });
+      
+      // Alternative: Direct usage (simpler but no automatic retry)
+      // const txSignature = await signAndSendTransaction({
+      //   instructions: [instruction],
+      // });
 
       setSignature(txSignature);
       console.log('Transaction confirmed:', txSignature);
@@ -333,11 +339,19 @@ export default function TransactionExample() {
         lamports: 0.01 * LAMPORTS_PER_SOL,
       });
 
-      // Sign and send transaction using LazorKit's signAndSendTransaction
-      // This method handles signing with passkey and submission via Paymaster
-      const txSignature = await signAndSendTransaction({
+      // Sign and send transaction using useTransactionSigning hook
+      // This hook handles signing with passkey, automatic credential refresh, and retry logic
+      // Note: The actual codebase uses useTransactionSigning for better error handling
+      const { signTransaction } = useTransactionSigning();
+      const txSignature = await signTransaction({
         instructions: [instruction],
       });
+      
+      // Alternative: Direct usage (simpler but no automatic retry)
+      // const { signAndSendTransaction } = useWallet();
+      // const txSignature = await signAndSendTransaction({
+      //   instructions: [instruction],
+      // });
 
       setSignature(txSignature);
       // Refresh balance after transaction
@@ -400,20 +414,36 @@ export default function TransactionExample() {
 ### Issue: "Insufficient funds"
 **Solution:** Ensure you have enough SOL for both the transaction amount and fees (fees are paid from wallet balance for native SOL transfers).
 
-### Issue: "Transaction too large: 1285 > 1232"
-**What it means:** Very small native SOL transfers (e.g. 0.01 SOL) may fail with this error.
+### Issue: "Transaction too large: Transaction size exceeds Solana's 1232 byte limit"
+**What it means:** Transactions may fail with this error. Follow these troubleshooting steps:
 
-**Why it happens:**
-- LazorKit routes transactions through the Paymaster pipeline internally
-- Paymaster adds extra instructions for smart wallet validation, session checks, and fee abstraction
-- For small amounts, paymaster optimization attempts can push transaction size over Solana's 1232 byte limit
-- Larger transfers (e.g. 0.1 SOL) succeed consistently as paymaster policies handle them differently
+**Troubleshooting Steps:**
 
-**Solution:** 
-- Try sending a larger amount (0.1+ SOL) - this works reliably
-- Split into multiple smaller transactions if needed
+1. **First, check if you have sufficient balance:**
+   - Verify your wallet balance is enough for the transaction amount
+   - Ensure you have enough SOL to cover transaction fees
+   - If balance is insufficient, fund your wallet and try again
 
-**Note:** This is a known Solana constraint and not an application bug. The transaction is still signed with passkeys and executed via smart wallet.
+2. **If you have sufficient balance, this is likely a passkey cache problem:**
+   - **Root Cause**: Passkey cache inconsistencies can cause the paymaster pipeline to create oversized transactions
+   - When passkey credentials are cached inconsistently, transaction size calculation can exceed Solana's 1232 byte limit
+   - This can happen with any transaction amount, not just small ones
+
+**Solution - Clear Cache and Reconnect:**
+
+**Disconnect wallet, clear cache and site data, then reconnect** - This resolves cached passkey credential issues:
+
+- **Chrome/Edge**: Settings → Privacy → Clear browsing data → Select "Cached images and files" and "Site data"
+- **Firefox**: Settings → Privacy → Clear Data → Select "Cached Web Content" and "Site Preferences"
+- **Safari**: Develop → Empty Caches (enable Develop menu in Preferences)
+
+After clearing cache and reconnecting, you should be able to send transactions of any amount (including very small amounts like 0.001 SOL).
+
+**Important Notes:**
+- This is a passkey cache issue, not a transaction size limitation
+- The transaction is still signed using passkeys (WebAuthn)
+- The transaction is still executed via a smart wallet (PDA)
+- All transactions are verifiable on-chain via Solana Explorer
 
 ## Key Takeaways
 

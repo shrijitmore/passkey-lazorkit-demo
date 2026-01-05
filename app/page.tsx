@@ -1,65 +1,45 @@
+/**
+ * Dashboard Page
+ * 
+ * Main dashboard demonstrating LazorKit passkey authentication:
+ * - Connect wallet with passkey (biometric authentication)
+ * - Display wallet balance
+ * - Show transaction history
+ * - Quick actions navigation
+ * 
+ * This page shows the simplest LazorKit integration:
+ * 1. Use useWebAuthnConnection() hook for connection with validation
+ * 2. Use useWallet() to get wallet state
+ * 3. Use useBalance() to display balance
+ * 
+ * Key LazorKit Features:
+ * - Passkey authentication on connect
+ * - Smart wallet address display
+ * - Balance fetching and display
+ * 
+ * @see Tutorial 1: Passkey Wallet for detailed explanation
+ */
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useRouter } from 'next/navigation';
-import { Wallet, Send, CreditCard, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
+import { Wallet, Send, CreditCard, TrendingUp, ArrowRight, RefreshCw } from 'lucide-react';
 import AppLayout from './components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
 import TransactionHistory from './components/TransactionHistory';
 import { getSubscriptions } from './lib/subscription/storage';
-import { WALLET_EVENTS, listenWalletEvent } from './lib/events/walletEvents';
-
-const RPC_URL = 'https://api.devnet.solana.com';
+import { useBalance } from './contexts/BalanceContext';
+import { useWebAuthnConnection } from './lib/hooks/useWebAuthnConnection';
+import LoadingSpinner from './components/ui/LoadingSpinner';
 
 export default function DashboardPage() {
-  const { isConnected, smartWalletPubkey, connect, isConnecting } = useWallet();
+  const { isConnected, smartWalletPubkey } = useWallet();
+  const { connect, isConnecting } = useWebAuthnConnection();
+  const { balance, isLoadingBalance, refreshBalance } = useBalance();
   const router = useRouter();
-  const [balance, setBalance] = useState<number | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [subscriptionCount, setSubscriptionCount] = useState(0);
-
-  const fetchBalance = useCallback(async () => {
-    if (!smartWalletPubkey) return;
-    setIsLoadingBalance(true);
-    try {
-      const connection = new Connection(RPC_URL, 'confirmed');
-      const balance = await connection.getBalance(smartWalletPubkey);
-      const balanceInSol = balance / LAMPORTS_PER_SOL;
-      setBalance(balanceInSol);
-    } catch (err) {
-      // Silently handle balance fetch errors
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  }, [smartWalletPubkey]);
-
-  useEffect(() => {
-    if (!isConnected || !smartWalletPubkey) {
-      setBalance(null);
-      return;
-    }
-
-    // Initial fetch
-    fetchBalance();
-
-    // Set up polling interval
-    const interval = setInterval(() => {
-      fetchBalance();
-    }, 30000);
-
-    // Listen for transaction events
-    const unsubscribe = listenWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, () => {
-      fetchBalance();
-    });
-
-    return () => {
-      clearInterval(interval);
-      unsubscribe();
-    };
-  }, [isConnected, smartWalletPubkey, fetchBalance]);
 
   useEffect(() => {
     if (isConnected && smartWalletPubkey) {
@@ -70,22 +50,9 @@ export default function DashboardPage() {
     }
   }, [isConnected, smartWalletPubkey]);
 
+  // Handle connect using the hook (validation is built-in)
   const handleConnect = async () => {
-    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-      alert('WebAuthn is not supported in this browser. Please use a modern browser.');
-      return;
-    }
-
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      alert('WebAuthn requires HTTPS. Please use HTTPS or localhost.');
-      return;
-    }
-
-    try {
-      await connect();
-    } catch (err) {
-      console.error('Connection error:', err);
-    }
+    await connect();
   };
 
   const usdEquivalent = balance !== null ? (balance * 150).toFixed(2) : '0.00';
@@ -104,7 +71,7 @@ export default function DashboardPage() {
           <Button onClick={handleConnect} disabled={isConnecting} size="lg" variant="gradient" className="shadow-lg w-full max-w-xs sm:w-auto">
             {isConnecting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <LoadingSpinner size="sm" color="white" />
                 <span className="ml-2">Connecting...</span>
               </>
             ) : (
@@ -122,7 +89,20 @@ export default function DashboardPage() {
           {/* Balance Card */}
           <Card className="mb-4 sm:mb-6 border-2 border-primary/20 bg-gradient-to-br from-card to-card/50">
             <CardHeader className="p-4 sm:p-6">
-              <CardDescription className="text-xs sm:text-sm text-muted-foreground">Total Balance</CardDescription>
+              <div className="flex items-center justify-between mb-2">
+                <CardDescription className="text-xs sm:text-sm text-muted-foreground">Total Balance</CardDescription>
+                <button
+                  onClick={refreshBalance}
+                  disabled={isLoadingBalance}
+                  className="p-1.5 rounded-lg hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Refresh balance"
+                  aria-label="Refresh balance"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 text-muted-foreground ${isLoadingBalance ? 'animate-spin' : ''}`}
+                  />
+                </button>
+              </div>
               <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 shadow-md">
@@ -131,7 +111,7 @@ export default function DashboardPage() {
                   <div>
                     {isLoadingBalance && balance === null ? (
                       <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-muted-foreground" />
+                        <LoadingSpinner size="sm" color="gray" />
                         <CardTitle className="text-xl sm:text-2xl text-foreground">0.0000</CardTitle>
                       </div>
                     ) : (

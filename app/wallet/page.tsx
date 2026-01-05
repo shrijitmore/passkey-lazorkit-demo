@@ -1,27 +1,55 @@
+/**
+ * Wallet Page
+ * 
+ * Complete wallet management page demonstrating LazorKit SDK integration:
+ * - Send SOL transactions with passkey signing
+ * - Receive SOL (display QR code and address)
+ * - Message signing for wallet verification
+ * - Balance display with refresh
+ * 
+ * This page shows how to:
+ * 1. Use useWallet() hook to get wallet state
+ * 2. Create transaction instructions
+ * 3. Sign and send transactions with signAndSendTransaction()
+ * 4. Sign messages with signMessage()
+ * 5. Handle transaction errors gracefully
+ * 
+ * Key LazorKit Methods Used:
+ * - signAndSendTransaction({ instructions }) - Signs with passkey and sends transaction
+ * - signMessage(message) - Signs a message for wallet verification
+ * - smartWalletPubkey - The wallet address (PDA)
+ * 
+ * @see Tutorial 2: Transactions for detailed explanation
+ */
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { Connection, LAMPORTS_PER_SOL, SystemProgram, PublicKey } from '@solana/web3.js';
-import { Send, Download, Copy, Check, Loader2, MessageSquare, Shield } from 'lucide-react';
+import { LAMPORTS_PER_SOL, SystemProgram, PublicKey } from '@solana/web3.js';
+import { getConnection } from '../lib/rpc/connection';
+import { Send, Download, Copy, Check, MessageSquare, Shield, RefreshCw, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import AppLayout from '../components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { WALLET_EVENTS, listenWalletEvent, dispatchWalletEvent } from '../lib/events/walletEvents';
-
-const RPC_URL = 'https://api.devnet.solana.com';
-const EXPLORER_URL = 'https://explorer.solana.com';
+import { WALLET_EVENTS, dispatchWalletEvent } from '../lib/events/walletEvents';
+import { useBalance } from '../contexts/BalanceContext';
+import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
+import { parseError } from '../lib/utils/errorHandling';
+import { useCopyToClipboard } from '../lib/hooks/useCopyToClipboard';
+import { getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
+import AlertMessage from '../components/ui/AlertMessage';
+import TransactionStatus from '../components/ui/TransactionStatus';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 export default function WalletPage() {
-  const { smartWalletPubkey, isConnected, signAndSendTransaction, signMessage } = useWallet();
-  const [balance, setBalance] = useState<number | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const { smartWalletPubkey, isConnected, signMessage } = useWallet();
+  const { signTransaction } = useTransactionSigning();
+  const { balance, isLoadingBalance, refreshBalance } = useBalance();
   const [sendAmount, setSendAmount] = useState('');
   const [recipientAddress, setRecipientAddress] = useState('');
-  const [copied, setCopied] = useState(false);
   const [txStatus, setTxStatus] = useState<'idle' | 'signing' | 'confirming' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
@@ -30,70 +58,15 @@ export default function WalletPage() {
   const [signature, setSignature] = useState<string | null>(null);
   const [signError, setSignError] = useState<string | null>(null);
 
-  const prevPubkeyRef = useRef<string | null>(null);
+  const walletAddress = useMemo(() => smartWalletPubkey?.toString() || '', [smartWalletPubkey]);
+  const usdEquivalent = useMemo(() => (balance !== null ? (balance * 150).toFixed(2) : '0.00'), [balance]);
+  
+  // Use copy to clipboard hook
+  const { copy: copyAddress, copied } = useCopyToClipboard();
 
-  const fetchBalance = useCallback(async () => {
-    if (!smartWalletPubkey) return;
-    setIsLoadingBalance(true);
-    try {
-      const connection = new Connection(RPC_URL, 'confirmed');
-      const balance = await connection.getBalance(smartWalletPubkey);
-      const balanceInSol = balance / LAMPORTS_PER_SOL;
-      setBalance(prev => {
-        if (prev === null) return balanceInSol;
-        const prevRounded = Math.round(prev * 10000) / 10000;
-        const newRounded = Math.round(balanceInSol * 10000) / 10000;
-        return prevRounded === newRounded ? prev : balanceInSol;
-      });
-    } catch (err) {
-      // Silently handle balance fetch errors
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  }, [smartWalletPubkey]);
-
-  useEffect(() => {
-    const pubkeyString = smartWalletPubkey?.toString() || null;
-    const pubkeyChanged = prevPubkeyRef.current !== pubkeyString;
-
-    if (pubkeyChanged) {
-      prevPubkeyRef.current = pubkeyString;
-      if (isConnected && smartWalletPubkey) {
-        fetchBalance();
-        const interval = setInterval(() => {
-          fetchBalance();
-        }, 30000);
-        return () => clearInterval(interval);
-      } else {
-        setBalance(null);
-      }
-    }
-  }, [isConnected, smartWalletPubkey, fetchBalance]);
-
-  useEffect(() => {
-    if (!isConnected || !smartWalletPubkey) return;
-
-    const unsubscribe = listenWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, () => {
-      fetchBalance();
-    });
-
-    return unsubscribe;
-  }, [isConnected, smartWalletPubkey, fetchBalance]);
-
-  const handleCopy = async () => {
-    if (!smartWalletPubkey) return;
-    try {
-      await navigator.clipboard.writeText(smartWalletPubkey.toString());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Silently handle copy errors
-    }
-  };
-
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSend = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!smartWalletPubkey || !signAndSendTransaction) {
+    if (!smartWalletPubkey) {
       setError('Wallet not connected');
       return;
     }
@@ -120,15 +93,19 @@ export default function WalletPage() {
         lamports: amountLamports,
       });
 
-      setTxStatus('signing');
-      const signature = await signAndSendTransaction({
+      // Sign transaction with automatic credential refresh
+      const signature = await signTransaction({
         instructions: [instruction],
+        onError: (error) => {
+          const errorInfo = parseError(error);
+          setError(errorInfo.userFriendly || errorInfo.message);
+        },
       });
 
       setTxSignature(signature);
       setTxStatus('confirming');
 
-      const connection = new Connection(RPC_URL, 'confirmed');
+      const connection = getConnection();
       await connection.confirmTransaction(signature, 'confirmed');
 
       setTxStatus('success');
@@ -146,12 +123,12 @@ export default function WalletPage() {
       }, 3000);
     } catch (err: unknown) {
       setTxStatus('error');
-      const errorObj = err as { message?: string };
-      setError(errorObj?.message || 'Transaction failed. Please try again.');
+      const errorInfo = parseError(err);
+      setError(errorInfo.userFriendly || errorInfo.message || 'Transaction failed. Please try again.');
     }
-  };
+  }, [smartWalletPubkey, balance, sendAmount, recipientAddress, signTransaction]);
 
-  const handleSignMessage = async (e: React.FormEvent) => {
+  const handleSignMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signMessage) {
       setSignError('Sign message not available');
@@ -179,10 +156,15 @@ export default function WalletPage() {
       }, 5000);
     } catch (err: unknown) {
       setSignStatus('error');
-      const errorObj = err as { message?: string };
-      setSignError(errorObj?.message || 'Message signing failed. Please try again.');
+      const errorInfo = parseError(err);
+      setSignError(errorInfo.userFriendly || errorInfo.message || 'Message signing failed. Please try again.');
     }
-  };
+  }, [signMessage, messageToSign]);
+
+  const explorerUrl = useMemo(
+    () => (txSignature ? getTransactionExplorerUrl(txSignature) : ''),
+    [txSignature]
+  );
 
   if (!isConnected) {
     return (
@@ -199,8 +181,6 @@ export default function WalletPage() {
     );
   }
 
-  const walletAddress = smartWalletPubkey?.toString() || '';
-  const usdEquivalent = balance !== null ? (balance * 150).toFixed(2) : '0.00';
 
   return (
     <AppLayout>
@@ -212,25 +192,38 @@ export default function WalletPage() {
       {/* Balance Card */}
       <Card className="mb-6 border-2 border-primary/20 bg-gradient-to-br from-card to-card/50">
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f7931a] shadow-md">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" fill="currentColor" />
-              </svg>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f7931a] shadow-md">
+                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" fill="currentColor" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <CardDescription className="text-muted-foreground">SOL Balance</CardDescription>
+                {isLoadingBalance && balance === null ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <CardTitle className="text-2xl text-foreground md:text-3xl">0.00000000</CardTitle>
+                  </div>
+                ) : (
+                  <CardTitle className="text-2xl text-foreground md:text-3xl">
+                    {balance !== null ? balance.toFixed(8) : '0.00000000'}
+                  </CardTitle>
+                )}
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <CardDescription className="text-muted-foreground">SOL Balance</CardDescription>
-              {isLoadingBalance && balance === null ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <CardTitle className="text-2xl text-foreground md:text-3xl">0.00000000</CardTitle>
-                </div>
-              ) : (
-                <CardTitle className="text-2xl text-foreground md:text-3xl">
-                  {balance !== null ? balance.toFixed(8) : '0.00000000'}
-                </CardTitle>
-              )}
-            </div>
+            <button
+              onClick={refreshBalance}
+              disabled={isLoadingBalance}
+              className="p-2 rounded-lg hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh balance"
+              aria-label="Refresh balance"
+            >
+              <RefreshCw
+                className={`h-5 w-5 text-muted-foreground ${isLoadingBalance ? 'animate-spin' : ''}`}
+              />
+            </button>
           </div>
           <CardDescription className="mt-2 text-muted-foreground">≈ ${usdEquivalent} USD</CardDescription>
         </CardHeader>
@@ -306,7 +299,7 @@ export default function WalletPage() {
                   <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3">
                     <p className="mb-2 text-sm font-medium text-green-400">Transaction Successful!</p>
                     <a
-                      href={`${EXPLORER_URL}/tx/${txSignature}?cluster=devnet`}
+                      href={explorerUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-blue-400 hover:underline"
@@ -325,13 +318,13 @@ export default function WalletPage() {
                 >
                   {txStatus === 'signing' && (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingSpinner size="sm" color="white" />
                       Signing...
                     </>
                   )}
                   {txStatus === 'confirming' && (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingSpinner size="sm" color="white" />
                       Confirming...
                     </>
                   )}
@@ -389,7 +382,7 @@ export default function WalletPage() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    onClick={handleCopy}
+                    onClick={() => copyAddress(walletAddress)}
                     className="shrink-0"
                   >
                     {copied ? (
@@ -470,7 +463,7 @@ export default function WalletPage() {
                 >
                   {signStatus === 'signing' && (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingSpinner size="sm" color="white" />
                       Signing with Passkey...
                     </>
                   )}

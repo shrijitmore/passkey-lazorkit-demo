@@ -47,7 +47,10 @@ Comprehensive guides for integration and configuration:
 1. **[Integration Guide](./guides/integration-guide.md)**  
    Complete step-by-step guide covering installation, setup, configuration, building UI, testing, and deployment.
 
-2. **[RPC Configuration](./guides/rpc-configuration.md)**  
+2. **[Local HTTPS Setup](./guides/local-https-setup.md)**  
+   Guide for setting up HTTPS locally (required for transactions). Includes certificate generation and troubleshooting.
+
+3. **[RPC Configuration](./guides/rpc-configuration.md)**  
    Learn how to set up and configure RPC providers for optimal performance and rate limit management.
 
 ---

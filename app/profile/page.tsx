@@ -2,29 +2,24 @@
 
 import { useWallet } from '@lazorkit/wallet';
 import { Copy, Check, ExternalLink } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Separator } from '../components/ui/separator';
-
-const EXPLORER_URL = 'https://explorer.solana.com';
+import { useCopyToClipboard } from '../lib/hooks/useCopyToClipboard';
+import { getAddressExplorerUrl } from '../lib/utils/explorerUrls';
 
 export default function ProfilePage() {
   const { smartWalletPubkey, isConnected, disconnect } = useWallet();
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    if (!smartWalletPubkey) return;
-    try {
-      await navigator.clipboard.writeText(smartWalletPubkey.toString());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Silently handle copy errors
-    }
-  };
+  const { copy: copyAddress, copied } = useCopyToClipboard();
+  
+  const walletAddress = useMemo(() => smartWalletPubkey?.toString() || '', [smartWalletPubkey]);
+  const explorerUrl = useMemo(
+    () => (walletAddress ? getAddressExplorerUrl(walletAddress) : ''),
+    [walletAddress]
+  );
 
   if (!isConnected) {
     return (
@@ -60,11 +55,17 @@ export default function ProfilePage() {
               <label className="text-sm font-medium text-foreground">Wallet Address</label>
               <div className="flex items-center gap-2">
                 <Input
-                  value={smartWalletPubkey?.toString() || ''}
+                  value={walletAddress}
                   readOnly
                   className="font-mono text-sm"
                 />
-                <Button type="button" variant="outline" size="icon" onClick={handleCopy} className="shrink-0">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => copyAddress(walletAddress)} 
+                  className="shrink-0"
+                >
                   {copied ? (
                     <Check className="h-4 w-4 text-green-400" />
                   ) : (
@@ -102,7 +103,7 @@ export default function ProfilePage() {
           <Card className="cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg">
             <CardContent className="p-6">
               <a
-                href={`${EXPLORER_URL}/address/${smartWalletPubkey?.toString()}?cluster=devnet`}
+                href={explorerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between"

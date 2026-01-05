@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { Connection } from '@solana/web3.js';
-
-const RPC_URL = 'https://api.devnet.solana.com';
-const EXPLORER_URL = 'https://explorer.solana.com';
+import { getConnection } from '../lib/rpc/connection';
+import { getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
+import LoadingSpinner from './ui/LoadingSpinner';
 
 interface Transaction {
   signature: string;
@@ -21,18 +20,28 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
   const { smartWalletPubkey, isConnected } = useWallet();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const hasFetchedRef = useRef(false);
   const lastRefreshTriggerRef = useRef<number | undefined>(undefined);
   const lastPubkeyRef = useRef<string | null>(null);
 
   const fetchTransactions = useCallback(async () => {
-    if (!smartWalletPubkey) return;
+    if (!smartWalletPubkey) {
+      setTransactions([]);
+      return;
+    }
     
     setIsLoading(true);
+    setError(null);
     try {
-      const connection = new Connection(RPC_URL, 'confirmed');
+      const connection = getConnection();
       // Limit to 5 transactions to reduce RPC calls
-      const signatures = await connection.getSignaturesForAddress(smartWalletPubkey, { limit: 5 });
+      // Note: getSignaturesForAddress requires at least 'confirmed' commitment
+      const signatures = await connection.getSignaturesForAddress(
+        smartWalletPubkey, 
+        { limit: 5 },
+        'confirmed' // Use 'confirmed' commitment as required by this method
+      );
       
       const txs: Transaction[] = signatures.map(sig => ({
         signature: sig.signature,
@@ -42,7 +51,10 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
       
       setTransactions(txs);
     } catch (err: unknown) {
-      // Silently handle transaction fetch errors (rate limiting is expected on public RPC)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch transactions';
+      console.error('[TransactionHistory] Error fetching transactions:', err);
+      setError(errorMessage);
+      // Don't clear existing transactions on error, just show the error
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +100,7 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
           data-testid="refresh-history-btn"
         >
           {isLoading ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+            <LoadingSpinner size="sm" color="primary" />
           ) : (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -97,19 +109,37 @@ export default function TransactionHistory({ refreshTrigger }: TransactionHistor
         </button>
       </div>
 
-      {transactions.length === 0 ? (
+      {/* Error message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+          <p className="text-xs text-red-400">{error}</p>
+          <p className="text-xs text-red-300/70 mt-1">Click refresh to try again</p>
+        </div>
+      )}
+
+      {transactions.length === 0 && !isLoading ? (
         <div className="text-center py-8" data-testid="no-transactions">
           <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           <p className="text-gray-400 text-sm">No transactions yet</p>
+          {smartWalletPubkey && (
+            <p className="text-xs text-gray-500 mt-2">
+              Wallet: {smartWalletPubkey.toString().substring(0, 8)}...
+            </p>
+          )}
+        </div>
+      ) : isLoading ? (
+        <div className="text-center py-8">
+          <LoadingSpinner size="md" color="primary" />
+          <p className="text-gray-400 text-sm mt-3">Loading transactions...</p>
         </div>
       ) : (
         <div className="space-y-3">
           {transactions.map((tx, index) => (
             <a
               key={tx.signature}
-              href={`${EXPLORER_URL}/tx/${tx.signature}?cluster=devnet`}
+              href={getTransactionExplorerUrl(tx.signature)}
               target="_blank"
               rel="noopener noreferrer"
               className="block glass-dark rounded-lg p-4 hover:border-primary/50 transition-all card-hover"

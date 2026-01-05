@@ -2,8 +2,7 @@
 
 import type { Subscription } from '../lib/subscription/types';
 import { formatDateTime } from '../lib/subscription/utils';
-
-const EXPLORER_BASE_URL = 'https://explorer.solana.com';
+import { getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
 
 interface SubscriptionPaymentHistoryProps {
   subscription: Subscription;
@@ -46,7 +45,7 @@ export default function SubscriptionPaymentHistory({ subscription }: Subscriptio
                   {payment.status}
                 </span>
                 <a
-                  href={`${EXPLORER_BASE_URL}/tx/${payment.txSignature}?cluster=devnet`}
+                  href={getTransactionExplorerUrl(payment.txSignature)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-400 hover:text-blue-300"

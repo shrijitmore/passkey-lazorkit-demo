@@ -6,6 +6,8 @@ import { updateSubscription, getSubscriptions } from '../lib/subscription/storag
 import { calculateNextBillingDate } from '../lib/subscription/utils';
 import type { Subscription, SubscriptionPlanId } from '../lib/subscription/types';
 import { WALLET_EVENTS, dispatchWalletEvent } from '../lib/events/walletEvents';
+import AlertMessage from './ui/AlertMessage';
+import LoadingSpinner from './ui/LoadingSpinner';
 
 const PLAN_NAMES: Record<string, string> = {
   basic: 'Basic',
@@ -127,31 +129,46 @@ export default function SubscriptionActions({ subscription, onUpdate }: Subscrip
     }
   };
 
-  if (error) {
-    return (
-      <div className="p-2 bg-red-500/10 border border-red-500/20 rounded text-sm text-red-400">
-        {error}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-2">
+      {/* Error message display */}
+      {error && (
+        <AlertMessage
+          variant="error"
+          message={error}
+          onClose={() => setError(null)}
+        />
+      )}
+
       {subscription.status === 'active' && (
         <>
           <button
             onClick={handlePause}
             disabled={isProcessing}
-            className="w-full py-2 px-4 glass rounded-lg text-sm text-yellow-400 hover:bg-yellow-500/10 transition-colors disabled:opacity-50"
+            className="w-full py-2 px-4 glass rounded-lg text-sm text-yellow-400 hover:bg-yellow-500/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isProcessing ? 'Processing...' : 'Pause Subscription'}
+            {isProcessing ? (
+              <>
+                <LoadingSpinner size="sm" color="yellow" />
+                Processing...
+              </>
+            ) : (
+              'Pause Subscription'
+            )}
           </button>
           <button
             onClick={handleCancel}
             disabled={isProcessing}
-            className="w-full py-2 px-4 glass rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+            className="w-full py-2 px-4 glass rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isProcessing ? 'Processing...' : 'Cancel Subscription'}
+            {isProcessing ? (
+              <>
+                <LoadingSpinner size="sm" color="gray" />
+                Processing...
+              </>
+            ) : (
+              'Cancel Subscription'
+            )}
           </button>
         </>
       )}
@@ -160,9 +177,16 @@ export default function SubscriptionActions({ subscription, onUpdate }: Subscrip
         <button
           onClick={handleResume}
           disabled={isProcessing}
-          className="w-full py-2 px-4 glass rounded-lg text-sm text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-50"
+          className="w-full py-2 px-4 glass rounded-lg text-sm text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {isProcessing ? 'Processing...' : 'Resume Subscription'}
+          {isProcessing ? (
+            <>
+              <LoadingSpinner size="sm" color="gray" />
+              Processing...
+            </>
+          ) : (
+            'Resume Subscription'
+          )}
         </button>
       )}
 

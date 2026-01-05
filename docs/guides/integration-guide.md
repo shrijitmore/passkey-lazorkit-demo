@@ -69,17 +69,15 @@ Create `app/components/LazorkitProviderWrapper.tsx`:
 import { LazorkitProvider } from '@lazorkit/wallet';
 import { useMemo, type ReactNode } from 'react';
 
-// Configuration constants
-const RPC_URL = 'https://api.devnet.solana.com';
-const PORTAL_URL = 'https://portal.lazor.sh';
-const PAYMASTER_URL = 'https://kora.devnet.lazorkit.com'; // Official Devnet paymaster
+// Import URL constants from centralized location
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
 
 export default function LazorkitProviderWrapper({
   children,
 }: {
   children: ReactNode;
 }) {
-  // Memoize config to prevent re-renders
+  // Memoize paymasterConfig to prevent object recreation on each render
   const paymasterConfig = useMemo(
     () => ({
       paymasterUrl: PAYMASTER_URL,
@@ -92,7 +90,10 @@ export default function LazorkitProviderWrapper({
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
-      passkey={true} // Enable passkey authentication
+      {...({
+        isDebug: true,
+        network: 'devnet',
+      } as any)}
     >
       {children}
     </LazorkitProvider>
@@ -101,10 +102,14 @@ export default function LazorkitProviderWrapper({
 ```
 
 **Key Points:**
+- URLs are imported from `../lib/constants/urls.ts` (centralized configuration)
 - `RPC_URL`: Solana RPC endpoint (use Devnet for testing)
 - `PORTAL_URL`: LazorKit's portal service for passkey management
 - `paymasterConfig`: Paymaster configuration (may sponsor fees for certain transaction types)
+- `isDebug: true`: Enables debug logging for development
+- `network: 'devnet'`: Sets the Solana network
 - `useMemo`: Prevents unnecessary re-renders
+- Type assertion `as any` is used for `isDebug` and `network` as they may not be in TypeScript definitions yet
 
 ### Step 2: Create Providers Wrapper (Optional but Recommended)
 
@@ -374,13 +379,22 @@ const handleTransfer = async (recipient: string, amount: number) => {
 
 ## Testing
 
-### Step 1: Start Development Server
+### Step 1: Start Development Server with HTTPS
+
+**⚠️ Important:** Transactions require HTTPS. Use the HTTPS development server:
 
 ```bash
-npm run dev
+npm run dev:https
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [https://localhost:3000](https://localhost:3000)
+
+**First Time Setup:**
+- Next.js will automatically generate self-signed certificates
+- Your browser will show a security warning - click "Advanced" → "Proceed to localhost"
+- This is safe for local development
+
+**Note:** While passkey authentication may work on `http://localhost`, **sending transactions requires HTTPS**.
 
 ### Step 2: Test Passkey Authentication
 
@@ -432,10 +446,13 @@ vercel
 
 ### Important Considerations
 
-1. **HTTPS Required**: Passkeys only work on HTTPS
-2. **Domain Configuration**: Update passkey RP ID for your domain
-3. **Mainnet**: Switch RPC URL to mainnet for production
-4. **Paymaster**: Consider your own paymaster for production
+1. **HTTPS Required**: Transactions require HTTPS (not just passkey authentication)
+2. **Local Development**: Use `npm run dev:https` for local HTTPS with auto-generated certificates
+3. **Domain Configuration**: Update passkey RP ID for your domain in production
+4. **Mainnet**: Switch RPC URL to mainnet for production
+5. **Paymaster**: Consider your own paymaster for production
+
+See [Local HTTPS Setup Guide](./local-https-setup.md) for detailed instructions.
 
 ---
 
