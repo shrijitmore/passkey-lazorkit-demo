@@ -61,7 +61,7 @@ For most use cases, you don't need these packages as LazorKit SDK provides all p
 
 ### Step 1: Create Provider Wrapper
 
-Create `app/components/LazorkitProviderWrapper.tsx`:
+Create `app/components/providers/LazorkitProviderWrapper.tsx`:
 
 ```tsx
 'use client';
@@ -70,7 +70,7 @@ import { LazorkitProvider } from '@lazorkit/wallet';
 import { useMemo, type ReactNode } from 'react';
 
 // Import URL constants from centralized location
-import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
 
 export default function LazorkitProviderWrapper({
   children,
@@ -102,7 +102,7 @@ export default function LazorkitProviderWrapper({
 ```
 
 **Key Points:**
-- URLs are imported from `../lib/constants/urls.ts` (centralized configuration)
+- URLs are imported from `../../lib/constants/urls.ts` (centralized configuration)
 - `RPC_URL`: Solana RPC endpoint (use Devnet for testing)
 - `PORTAL_URL`: LazorKit's portal service for passkey management
 - `paymasterConfig`: Paymaster configuration (may sponsor fees for certain transaction types)
@@ -116,12 +116,12 @@ export default function LazorkitProviderWrapper({
 For better organization, especially if you have multiple providers (like theme providers), create a `Providers.tsx` component:
 
 ```tsx
-// app/components/Providers.tsx
+// app/components/providers/Providers.tsx
 'use client';
 
 import { ReactNode } from 'react';
 import LazorkitProviderWrapper from './LazorkitProviderWrapper';
-import { ThemeProvider } from '../contexts/ThemeContext'; // If you have a theme provider
+import { ThemeProvider } from '../../contexts/ThemeContext'; // If you have a theme provider
 
 export default function Providers({ children }: { children: ReactNode }) {
   return (
@@ -255,7 +255,7 @@ const PAYMASTER_URL = process.env.NEXT_PUBLIC_PAYMASTER_URL!;
 
 ### Step 1: Create Wallet Component
 
-Create `app/components/WalletPanelEnhanced.tsx` (or a simpler `WalletPanel.tsx`):
+Create `app/components/wallet/WalletPanelEnhanced.tsx` (or a simpler `WalletPanel.tsx`):
 
 ```tsx
 'use client';
@@ -268,8 +268,8 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 
-import { getConnection } from '../lib/rpc/connection';
-import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
+import { getConnection } from '../../lib/rpc/connection';
+import { useTransactionSigning } from '../../lib/hooks/useTransactionSigning';
 
 export default function WalletPanelEnhanced() {
   const {
@@ -336,15 +336,20 @@ export default function WalletPanelEnhanced() {
 1. **useWallet Hook**: Provides all wallet functionality
 2. **smartWalletPubkey**: The user's Solana wallet address
 3. **connect()**: Triggers passkey authentication
-4. **signAndSendTransaction()**: Sends transactions with passkey signing
+4. **useTransactionSigning Hook**: Wraps transaction signing with automatic credential refresh and retry logic
 
 ### Step 2: Implementing Transactions
 
 Add a transfer function:
 
 ```tsx
+// Note: Import useTransactionSigning hook at the top of the component
+import { useTransactionSigning } from '../../lib/hooks/useTransactionSigning';
+
 const handleTransfer = async (recipient: string, amount: number) => {
-  if (!smartWalletPubkey || !signAndSendTransaction) return;
+  if (!smartWalletPubkey) return;
+
+  const { signTransaction } = useTransactionSigning();
 
   try {
     const recipientPubkey = new PublicKey(recipient);
@@ -359,7 +364,8 @@ const handleTransfer = async (recipient: string, amount: number) => {
 
       // Send transaction (signed with passkey)
       // Note: For native SOL transfers, fees are paid from wallet balance
-      const signature = await signAndSendTransaction({
+      // Note: useTransactionSigning hook handles automatic credential refresh and retry logic
+      const signature = await signTransaction({
         instructions: [instruction],
       });
 
@@ -435,7 +441,14 @@ Open [https://localhost:3000](https://localhost:3000)
 
 ## Deployment
 
-### Deploy to Vercel
+### Option 1: Deploy to Vercel (Recommended)
+
+**Why Vercel?**
+- Built by Next.js creators - zero configuration needed
+- Automatic HTTPS (required for transactions)
+- Free tier with generous limits
+- One-click deployment
+- Global CDN included
 
 ```bash
 # Install Vercel CLI
@@ -443,6 +456,81 @@ npm i -g vercel
 
 # Deploy
 vercel
+```
+
+**Or use the Vercel Dashboard:**
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com)
+3. Import your repository
+4. Click "Deploy" (automatic HTTPS included)
+
+### Option 2: Deploy to Google Cloud Platform (GCP)
+
+**Using Cloud Run (Recommended for GCP):**
+
+```bash
+# Build the Next.js app
+npm run build
+
+# Create a Dockerfile (if not exists)
+# Then deploy to Cloud Run:
+gcloud run deploy lazorkit-demo \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+**Using App Engine:**
+
+1. Create `app.yaml`:
+```yaml
+runtime: nodejs20
+env: standard
+automatic_scaling:
+  min_instances: 1
+```
+
+2. Deploy:
+```bash
+gcloud app deploy
+```
+
+**Note:** GCP requires more setup (Dockerfile, app.yaml, billing account). Vercel is faster for Next.js apps.
+
+### Option 3: Deploy to Render
+
+**Why Render?**
+- Simple setup with automatic HTTPS
+- Free tier available
+- Auto-deploy from GitHub
+- Good Next.js support
+
+**Steps:**
+1. Push your code to GitHub
+2. Go to [render.com](https://render.com) → New → Web Service
+3. Connect your GitHub repository
+4. Render auto-detects Next.js configuration
+5. Click "Create Web Service"
+6. HTTPS is provided automatically
+
+**Or use Render CLI:**
+```bash
+# Install Render CLI
+npm i -g render-cli
+
+# Deploy
+render deploy
+```
+
+### Option 4: Deploy to Netlify
+
+```bash
+# Install Netlify CLI
+npm i -g netlify-cli
+
+# Deploy
+netlify deploy --prod
 ```
 
 ### Important Considerations
@@ -503,7 +591,7 @@ const handleConnect = async () => {
 
 **Solution**: Use `localhost` (not `127.0.0.1`) and HTTPS:
 ```bash
-next dev --experimental-https
+npm run dev:https
 ```
 
 ---
@@ -542,7 +630,7 @@ if (isConnecting) {
 Wait for transaction confirmation:
 
 ```tsx
-import { getConnection } from '../lib/rpc/connection';
+import { getConnection } from '../../lib/rpc/connection';
 
 const signature = await signTransaction({...});
 const connection = getConnection();

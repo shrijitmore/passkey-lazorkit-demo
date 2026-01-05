@@ -8,11 +8,17 @@ This document explains how our LazorKit integration works, step-by-step, with re
 passkey-lazorkit-demo/
 ├── app/
 │   ├── components/
-│   │   ├── LazorkitProviderWrapper.tsx  # LazorKit provider setup
-│   │   ├── Providers.tsx                # Combined providers wrapper
-│   │   ├── WalletPanelEnhanced.tsx      # Main wallet UI component
-│   │   ├── TransferModal.tsx             # Transaction modal
-│   │   └── ...                          # Other components
+│   │   ├── providers/                   # React Context Providers
+│   │   │   ├── LazorkitProviderWrapper.tsx  # LazorKit provider setup
+│   │   │   └── Providers.tsx            # Combined providers wrapper
+│   │   ├── wallet/                      # Wallet-related components
+│   │   │   ├── WalletPanelEnhanced.tsx  # Main wallet UI component
+│   │   │   ├── TransferModal.tsx        # Transaction modal
+│   │   │   └── TransactionHistory.tsx   # Transaction history
+│   │   ├── subscription/                # Subscription-related components
+│   │   │   ├── SubscriptionDemo.tsx    # Subscription demo
+│   │   │   └── ...                      # Other subscription components
+│   │   └── ...                          # Other component folders
 │   ├── layout.tsx                        # Root layout with Providers
 │   └── page.tsx                          # Home page
 ├── docs/
@@ -56,13 +62,15 @@ export default function Providers({ children }: { children: ReactNode }) {
 
 ### 2. LazorkitProviderWrapper.tsx
 
+**Location**: `app/components/providers/LazorkitProviderWrapper.tsx`
+
 **Purpose**: Wraps the app with LazorKit's provider to enable wallet functionality everywhere.
 
 **How it works**:
 
 ```typescript
 // In the actual codebase, URLs are imported from app/lib/constants/urls.ts
-import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
 
 <LazorkitProvider
   rpcUrl={RPC_URL}
@@ -108,6 +116,8 @@ import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
 **Reference**: [LazorkitProvider API](https://docs.lazorkit.com/react-sdk/provider)
 
 ### 3. WalletPanelEnhanced.tsx
+
+**Location**: `app/components/wallet/WalletPanelEnhanced.tsx`
 
 **Purpose**: Main UI component that demonstrates all LazorKit features.
 

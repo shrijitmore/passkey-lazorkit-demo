@@ -149,7 +149,7 @@ export default function SubscriptionActions({ subscription, onUpdate }: Subscrip
           >
             {isProcessing ? (
               <>
-                <LoadingSpinner size="sm" color="yellow" />
+                <LoadingSpinner size="sm" color="primary" />
                 Processing...
               </>
             ) : (

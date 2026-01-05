@@ -48,12 +48,12 @@ The `LazorkitProvider` is the foundation of your LazorKit integration. It wraps 
 According to the [official documentation](https://docs.lazorkit.com/react-sdk/getting-started#provider-implementation), here's the default Devnet configuration:
 
 ```typescript
-// app/components/LazorkitProviderWrapper.tsx
+// app/components/providers/LazorkitProviderWrapper.tsx
 'use client';
 
 import { LazorkitProvider } from '@lazorkit/wallet';
 import { useMemo, type ReactNode } from 'react';
-import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
 
 export default function LazorkitProviderWrapper({
   children,
@@ -104,12 +104,12 @@ export default function LazorkitProviderWrapper({
 In your root layout (`app/layout.tsx`), wrap your application. For better organization, especially if you have multiple providers, create a `Providers.tsx` wrapper:
 
 ```typescript
-// app/components/Providers.tsx
+// app/components/providers/Providers.tsx
 'use client';
 
 import { ReactNode } from 'react';
 import LazorkitProviderWrapper from './LazorkitProviderWrapper';
-import { ThemeProvider } from '../contexts/ThemeContext'; // If you have a theme provider
+import { ThemeProvider } from '../../contexts/ThemeContext'; // If you have a theme provider
 
 export default function Providers({ children }: { children: ReactNode }) {
   return (
@@ -209,7 +209,7 @@ export function ConnectButton() {
 - Faucet instructions
 - Comprehensive error handling
 
-You can view the complete implementation in `app/components/WalletPanelEnhanced.tsx`.
+You can view the complete implementation in `app/components/wallet/WalletPanelEnhanced.tsx`.
 
 ## Step 6: Understanding the Connection Flow
 

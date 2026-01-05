@@ -83,7 +83,7 @@ export interface PaymentRecord {
 Create a subscription with passkey authentication:
 
 ```typescript
-// app/components/SubscriptionDemo.tsx
+// app/components/subscription/SubscriptionDemo.tsx
 import { useState, useCallback } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
@@ -220,7 +220,7 @@ const handleResume = (subscriptionId: string) => {
 Track all payments for a subscription:
 
 ```typescript
-// app/components/SubscriptionPaymentHistory.tsx
+// app/components/subscription/SubscriptionPaymentHistory.tsx
 export default function SubscriptionPaymentHistory({ subscription }: { subscription: Subscription }) {
   return (
     <div>

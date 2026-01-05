@@ -77,9 +77,9 @@ Open [https://localhost:3000](https://localhost:3000) in your browser.
 The LazorKit SDK is already configured in this example. Here's how it's set up:
 
 ```typescript
-// app/components/LazorkitProviderWrapper.tsx
+// app/components/providers/LazorkitProviderWrapper.tsx
 import { LazorkitProvider } from '@lazorkit/wallet';
-import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../lib/constants/urls';
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
 
 <LazorkitProvider
   rpcUrl={RPC_URL}
@@ -106,12 +106,18 @@ See [Integration Guide](./docs/guides/integration-guide.md) for detailed setup i
 passkey-lazorkit-demo/
 ├── app/
 │   ├── components/
-│   │   ├── LazorkitProviderWrapper.tsx  # LazorKit SDK provider setup
-│   │   ├── WalletPanelEnhanced.tsx      # Main wallet UI example
-│   │   ├── TransferModal.tsx            # Transaction sending example
-│   │   ├── TransactionHistory.tsx        # Transaction history example
-│   │   ├── SubscriptionDemo.tsx         # Subscription billing example
-│   │   └── ui/                          # Reusable UI components
+│   │   ├── providers/                   # React Context Providers
+│   │   │   ├── LazorkitProviderWrapper.tsx  # LazorKit SDK provider setup
+│   │   │   └── Providers.tsx            # Combined providers wrapper
+│   │   ├── wallet/                      # Wallet-related components
+│   │   │   ├── WalletPanelEnhanced.tsx  # Main wallet UI example
+│   │   │   ├── TransferModal.tsx         # Transaction sending example
+│   │   │   └── TransactionHistory.tsx   # Transaction history example
+│   │   ├── subscription/                # Subscription-related components
+│   │   │   ├── SubscriptionDemo.tsx     # Subscription billing example
+│   │   │   └── ...                      # Other subscription components
+│   │   ├── ui/                          # Reusable UI components
+│   │   └── ...                          # Other component folders
 │   ├── lib/
 │   │   ├── hooks/
 │   │   │   ├── useTransactionSigning.ts    # Transaction signing hook
@@ -145,10 +151,13 @@ passkey-lazorkit-demo/
 ```
 
 **Key Files for LazorKit Integration:**
-- `app/components/LazorkitProviderWrapper.tsx` - SDK provider configuration
-- `app/components/WalletPanelEnhanced.tsx` - Complete wallet example
+- `app/components/providers/LazorkitProviderWrapper.tsx` - SDK provider configuration
+- `app/components/wallet/WalletPanelEnhanced.tsx` - Complete wallet example
+- `app/components/wallet/TransferModal.tsx` - Transaction sending example
 - `app/lib/hooks/useTransactionSigning.ts` - Transaction signing with retry logic
 - `app/page.tsx` - Dashboard with connection example
+
+**See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for complete folder organization.**
 
 ---
 
@@ -200,7 +209,7 @@ This example demonstrates the essential LazorKit SDK patterns:
 #### 1. Provider Setup
 
 ```typescript
-// app/components/LazorkitProviderWrapper.tsx
+// app/components/providers/LazorkitProviderWrapper.tsx
 import { LazorkitProvider } from '@lazorkit/wallet';
 
 <LazorkitProvider
@@ -253,7 +262,7 @@ const signature = await signAndSendTransaction({
 - ✅ **Transaction Signing** - Automatic passkey signing for all transactions
 - ✅ **Session Management** - Persistent wallet sessions
 
-For detailed examples, see the [tutorials](./docs/tutorials/) or check the code in `app/components/WalletPanelEnhanced.tsx`.
+For detailed examples, see the [tutorials](./docs/tutorials/) or check the code in `app/components/wallet/WalletPanelEnhanced.tsx`.
 
 ### ⚠️ Known Issue: Paymaster Transaction Size Error
 
@@ -328,7 +337,9 @@ After clearing cache and reconnecting, you should be able to send transactions o
 
 ## 🚢 Deployment
 
-### Deploy to Vercel
+### Option 1: Deploy to Vercel (Recommended)
+
+**Why Vercel?** Built by Next.js creators - zero config, automatic HTTPS, free tier.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/lazorkit-starter)
 
@@ -339,6 +350,44 @@ npm i -g vercel
 # Deploy
 vercel
 ```
+
+**Or use Vercel Dashboard:** Push to GitHub → Import on vercel.com → Deploy (HTTPS automatic)
+
+### Option 2: Deploy to Render
+
+**Why Render?** Simple setup, automatic HTTPS, free tier, auto-deploy from GitHub.
+
+1. Push your code to GitHub
+2. Go to [render.com](https://render.com) → New → Web Service
+3. Connect your GitHub repository
+4. Render auto-detects Next.js
+5. Click "Create Web Service"
+6. HTTPS is automatic
+
+**Or use Render CLI:**
+```bash
+npm i -g render-cli
+render deploy
+```
+
+### Option 3: Deploy to Netlify
+
+```bash
+npm i -g netlify-cli
+netlify deploy --prod
+```
+
+### Option 4: Deploy to Google Cloud Platform (GCP)
+
+**Using Cloud Run:**
+```bash
+npm run build
+gcloud run deploy lazorkit-demo --source . --platform managed --region us-central1 --allow-unauthenticated
+```
+
+**Using App Engine:** Create `app.yaml` and run `gcloud app deploy`
+
+**Note:** GCP requires more setup. See [Deployment Guide](./docs/guides/integration-guide.md#deployment) for details.
 
 ### Important: HTTPS Required for Transactions
 
@@ -407,22 +456,22 @@ This project is submitted for the **Superteam Earn - LazorKit Integration Bounty
 This example clearly demonstrates:
 
 1. **Passkey Authentication** - Complete WebAuthn implementation with biometric authentication
-   - See: `app/components/WalletPanelEnhanced.tsx` and `app/page.tsx`
+   - See: `app/components/wallet/WalletPanelEnhanced.tsx` and `app/page.tsx`
    - Tutorial: [Tutorial 1: Passkey Wallet](./docs/tutorials/tutorial-1-passkey-wallet.md)
 
 2. **Smart Wallet Transactions** - Real SOL transfers with passkey signing
-   - See: `app/wallet/page.tsx` and `app/components/TransferModal.tsx`
+   - See: `app/wallet/page.tsx` and `app/components/wallet/TransferModal.tsx`
    - Tutorial: [Tutorial 2: Transactions](./docs/tutorials/tutorial-2-transactions.md)
 
 3. **Paymaster Integration** - Gasless transaction support
-   - See: `app/components/LazorkitProviderWrapper.tsx`
+   - See: `app/components/providers/LazorkitProviderWrapper.tsx`
    - Configured with official Devnet paymaster
 
 4. **Session Persistence** - Wallet state management across page reloads
    - Tutorial: [Tutorial 3: Session Persistence](./docs/tutorials/tutorial-3-session-persistence.md)
 
 5. **Subscription Billing** - Recurring payments with smart wallets
-   - See: `app/components/SubscriptionDemo.tsx`
+   - See: `app/components/subscription/SubscriptionDemo.tsx`
    - Tutorial: [Tutorial 4: Subscription Billing](./docs/tutorials/tutorial-4-subscription-billing.md)
 
 ### Code Quality
@@ -439,7 +488,7 @@ This example clearly demonstrates:
 
 ### 1. Provider Setup (Required)
 ```typescript
-// app/components/LazorkitProviderWrapper.tsx
+// app/components/providers/LazorkitProviderWrapper.tsx
 <LazorkitProvider
   rpcUrl="https://api.devnet.solana.com"
   portalUrl="https://portal.lazor.sh"

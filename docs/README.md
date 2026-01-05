@@ -14,11 +14,14 @@ docs/
 │   └── tutorial-4-subscription-billing.md
 ├── guides/                      # Integration and setup guides
 │   ├── integration-guide.md
+│   ├── local-https-setup.md
 │   └── rpc-configuration.md
 └── technical/                   # Technical deep dives
     ├── CODE_EXPLANATION.md
     └── TECHNICAL_EXPLANATION.md
 ```
+
+**See [PROJECT_STRUCTURE.md](../PROJECT_STRUCTURE.md) in the root directory for complete folder organization.**
 
 ---
 
