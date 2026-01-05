@@ -205,24 +205,24 @@ export default function WalletPage() {
       </div>
 
       {/* Balance Card */}
-      <Card className="mb-6 border-2 border-primary/20 bg-gradient-to-br from-card to-card/50">
-        <CardHeader>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f7931a] shadow-md">
-                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
+      <Card className="mb-4 sm:mb-6 border-2 border-primary/20 bg-gradient-to-br from-card to-card/50">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-[#f7931a] shadow-md">
+                <svg className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" fill="currentColor" />
                 </svg>
               </div>
               <div className="min-w-0 flex-1">
-                <CardDescription className="text-muted-foreground">SOL Balance</CardDescription>
+                <CardDescription className="text-xs sm:text-sm text-muted-foreground">SOL Balance</CardDescription>
                 {isLoadingBalance && balance === null ? (
                   <div className="flex items-center gap-2">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <CardTitle className="text-2xl text-foreground md:text-3xl">0.00000000</CardTitle>
+                    <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-muted-foreground" />
+                    <CardTitle className="text-xl sm:text-2xl md:text-3xl text-foreground">0.00000000</CardTitle>
                   </div>
                 ) : (
-                  <CardTitle className="text-2xl text-foreground md:text-3xl">
+                  <CardTitle className="text-xl sm:text-2xl md:text-3xl text-foreground truncate">
                     {balance !== null ? balance.toFixed(8) : '0.00000000'}
                   </CardTitle>
                 )}
@@ -231,37 +231,46 @@ export default function WalletPage() {
             <button
               onClick={refreshBalance}
               disabled={isLoadingBalance}
-              className="p-2 rounded-lg hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               title="Refresh balance"
               aria-label="Refresh balance"
             >
               <RefreshCw
-                className={`h-5 w-5 text-muted-foreground ${isLoadingBalance ? 'animate-spin' : ''}`}
+                className={`h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground ${isLoadingBalance ? 'animate-spin' : ''}`}
               />
             </button>
           </div>
-          <CardDescription className="mt-2 text-muted-foreground">≈ ${usdEquivalent} USD</CardDescription>
+          <CardDescription className="mt-2 text-xs sm:text-sm text-muted-foreground">≈ ${usdEquivalent} USD</CardDescription>
         </CardHeader>
       </Card>
 
       {/* Send/Receive/Verify Tabs */}
       <Tabs defaultValue="send" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-muted">
-          <TabsTrigger value="send" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-background px-2 sm:px-4">
-            <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Send</span>
+        <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 sm:p-1.5 h-auto min-h-[52px] sm:min-h-[48px] gap-1 sm:gap-2 mb-4 sm:mb-6">
+          <TabsTrigger 
+            value="send" 
+            className="flex flex-col items-center justify-center gap-1 text-[11px] sm:text-xs md:text-sm data-[state=active]:bg-background px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 h-auto min-h-[48px] sm:min-h-[44px] transition-all touch-manipulation"
+          >
+            <Send className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" />
+            <span className="leading-tight font-medium">Send</span>
           </TabsTrigger>
-          <TabsTrigger value="receive" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-background px-2 sm:px-4">
-            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Receive</span>
+          <TabsTrigger 
+            value="receive" 
+            className="flex flex-col items-center justify-center gap-1 text-[11px] sm:text-xs md:text-sm data-[state=active]:bg-background px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 h-auto min-h-[48px] sm:min-h-[44px] transition-all touch-manipulation"
+          >
+            <Download className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" />
+            <span className="leading-tight font-medium">Receive</span>
           </TabsTrigger>
-          <TabsTrigger value="verify" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-background px-2 sm:px-4">
-            <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Verify</span>
+          <TabsTrigger 
+            value="verify" 
+            className="flex flex-col items-center justify-center gap-1 text-[11px] sm:text-xs md:text-sm data-[state=active]:bg-background px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 h-auto min-h-[48px] sm:min-h-[44px] transition-all touch-manipulation"
+          >
+            <Shield className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" />
+            <span className="leading-tight font-medium">Verify</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="send" className="mt-6">
+        <TabsContent value="send" className="mt-4 sm:mt-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-foreground">Send SOL</CardTitle>
@@ -420,7 +429,7 @@ export default function WalletPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="verify" className="mt-6">
+        <TabsContent value="verify" className="mt-4 sm:mt-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
