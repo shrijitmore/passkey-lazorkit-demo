@@ -3,6 +3,7 @@
 import { LazorkitProvider } from '@lazorkit/wallet';
 import { useMemo, type ReactNode } from 'react';
 import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
+import type { PartialLazorkitProviderConfig } from '../../lib/types/lazorkit';
 
 /**
  * LazorKit Provider Wrapper
@@ -53,15 +54,18 @@ export default function LazorkitProviderWrapper({
     []
   );
 
+  // Additional provider props that may not be in official SDK types but are supported at runtime
+  const additionalProps: PartialLazorkitProviderConfig = {
+    isDebug: true,
+    network: 'devnet',
+  };
+
   return (
     <LazorkitProvider
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
-      {...({
-        isDebug: true,
-        network: 'devnet',
-      } as any)}
+      {...(additionalProps as PartialLazorkitProviderConfig)}
     >
       {children}
     </LazorkitProvider>

@@ -27,7 +27,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import { LAMPORTS_PER_SOL, SystemProgram, PublicKey } from '@solana/web3.js';
 import { getConnection } from '../lib/rpc/connection';
-import { Send, Download, Copy, Check, MessageSquare, Shield, RefreshCw, Loader2 } from 'lucide-react';
+import { Send, Download, Copy, Check, MessageSquare, Shield, RefreshCw, Loader2, QrCode } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import AppLayout from '../components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -43,6 +43,8 @@ import { getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
 import AlertMessage from '../components/ui/AlertMessage';
 import TransactionStatus from '../components/ui/TransactionStatus';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import ErrorRecovery from '../components/ui/ErrorRecovery';
+import QRScanner from '../components/ui/QRScanner';
 
 export default function WalletPage() {
   const { smartWalletPubkey, isConnected, signMessage } = useWallet();
@@ -57,6 +59,8 @@ export default function WalletPage() {
   const [signStatus, setSignStatus] = useState<'idle' | 'signing' | 'success' | 'error'>('idle');
   const [signature, setSignature] = useState<string | null>(null);
   const [signError, setSignError] = useState<string | null>(null);
+  const [errorInfo, setErrorInfo] = useState<ReturnType<typeof parseError> | null>(null);
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   const walletAddress = useMemo(() => smartWalletPubkey?.toString() || '', [smartWalletPubkey]);
   const usdEquivalent = useMemo(() => (balance !== null ? (balance * 150).toFixed(2) : '0.00'), [balance]);
@@ -112,8 +116,9 @@ export default function WalletPage() {
       const signature = await signTransaction({
         instructions: [instruction],
         onError: (error) => {
-          const errorInfo = parseError(error);
-          setError(errorInfo.userFriendly || errorInfo.message);
+          const parsedError = parseError(error);
+          setErrorInfo(parsedError);
+          setError(parsedError.userFriendly || parsedError.message);
         },
       });
 
@@ -138,10 +143,23 @@ export default function WalletPage() {
       }, 3000);
     } catch (err: unknown) {
       setTxStatus('error');
-      const errorInfo = parseError(err);
-      setError(errorInfo.userFriendly || errorInfo.message || 'Transaction failed. Please try again.');
+      const parsedError = parseError(err);
+      setErrorInfo(parsedError);
+      setError(parsedError.userFriendly || parsedError.message || 'Transaction failed. Please try again.');
     }
   }, [smartWalletPubkey, balance, sendAmount, recipientAddress, signTransaction]);
+
+  const handleScan = useCallback((result: string) => {
+    try {
+      // Validate if the scanned result is a valid Solana address
+      new PublicKey(result);
+      setRecipientAddress(result);
+      setShowQRScanner(false);
+      setError(null); // Clear any previous errors
+    } catch (e) {
+      setError('Invalid Solana address scanned. Please try again.');
+    }
+  }, []);
 
   const handleSignMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -282,14 +300,27 @@ export default function WalletPage() {
                   <label htmlFor="recipient" className="text-sm font-medium text-foreground">
                     Recipient Address
                   </label>
-                  <Input
-                    id="recipient"
-                    value={recipientAddress}
-                    onChange={(e) => setRecipientAddress(e.target.value)}
-                    placeholder="Enter Solana wallet address"
-                    className="font-mono text-sm"
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="recipient"
+                      value={recipientAddress}
+                      onChange={(e) => setRecipientAddress(e.target.value)}
+                      placeholder="Enter Solana wallet address or scan QR code"
+                      className="font-mono text-sm pr-10"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowQRScanner(true)}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-muted"
+                      title="Scan QR Code"
+                      aria-label="Scan QR Code"
+                    >
+                      <QrCode className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -315,8 +346,50 @@ export default function WalletPage() {
 
                 {error && (
                   <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 sm:p-4">
-                    <p className="text-xs sm:text-sm text-destructive break-words">{error}</p>
+                    <p className="text-xs sm:text-sm text-destructive break-words whitespace-pre-line">{error}</p>
                   </div>
+                )}
+
+                {errorInfo && (
+                  <ErrorRecovery
+                    errorInfo={errorInfo}
+                    show={errorInfo.recoverable === true && txStatus === 'error'}
+                    onRecoverySuccess={() => {
+                      setError(null);
+                      setErrorInfo(null);
+                    }}
+                    onRetry={async () => {
+                      // Retry the transaction
+                      const recipientPubkey = new PublicKey(recipientAddress);
+                      const amountLamports = parseFloat(sendAmount) * LAMPORTS_PER_SOL;
+                      const instruction = SystemProgram.transfer({
+                        fromPubkey: smartWalletPubkey!,
+                        toPubkey: recipientPubkey,
+                        lamports: amountLamports,
+                      });
+                      const signature = await signTransaction({
+                        instructions: [instruction],
+                        onError: (error) => {
+                          const parsedError = parseError(error);
+                          setErrorInfo(parsedError);
+                          setError(parsedError.userFriendly || parsedError.message);
+                        },
+                      });
+                      setTxSignature(signature);
+                      setTxStatus('confirming');
+                      const connection = getConnection();
+                      await connection.confirmTransaction(signature, 'confirmed');
+                      setTxStatus('success');
+                      dispatchWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, {
+                        signature,
+                        type: 'transfer',
+                      });
+                      dispatchWalletEvent(WALLET_EVENTS.BALANCE_UPDATED);
+                    }}
+                    onDismiss={() => {
+                      setErrorInfo(null);
+                    }}
+                  />
                 )}
 
                 {txStatus === 'success' && txSignature && (
@@ -514,6 +587,13 @@ export default function WalletPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* QR Scanner Modal */}
+      <QRScanner
+        isOpen={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
+        onScan={handleScan}
+      />
     </AppLayout>
   );
 }

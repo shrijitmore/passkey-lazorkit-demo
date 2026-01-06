@@ -80,21 +80,24 @@ The LazorKit SDK is already configured in this example. Here's how it's set up:
 // app/components/providers/LazorkitProviderWrapper.tsx
 import { LazorkitProvider } from '@lazorkit/wallet';
 import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
+import type { PartialLazorkitProviderConfig } from '../../lib/types/lazorkit';
+
+const additionalProps: PartialLazorkitProviderConfig = {
+  isDebug: true,
+  network: 'devnet',
+};
 
 <LazorkitProvider
   rpcUrl={RPC_URL}
   portalUrl={PORTAL_URL}
   paymasterConfig={{ paymasterUrl: PAYMASTER_URL }}
-  {...({
-    isDebug: true,
-    network: 'devnet',
-  } as any)}
+  {...(additionalProps as PartialLazorkitProviderConfig)}
 >
   {children}
 </LazorkitProvider>
 ```
 
-**Note**: URLs are centralized in `app/lib/constants/urls.ts` for easier maintenance. The `isDebug` and `network` props use a type assertion (`as any`) because they may not be in the TypeScript definitions yet but are supported at runtime.
+**Note**: URLs are centralized in `app/lib/constants/urls.ts` for easier maintenance. Type definitions are available in `app/lib/types/lazorkit.ts` for proper TypeScript support.
 
 See [Integration Guide](./docs/guides/integration-guide.md) for detailed setup instructions.
 
@@ -272,7 +275,18 @@ If you encounter this error:
 Transaction too large: Transaction size exceeds Solana's 1232 byte limit
 ```
 
-**Troubleshooting Steps:**
+**Automatic Recovery Available!**
+
+This demo includes **automatic error recovery** for transaction size errors. When this error occurs:
+
+1. **Automatic Recovery UI** will appear with a "Clear Cache & Retry" button
+2. Click the button to automatically:
+   - Clear all application caches
+   - Disconnect and reconnect your wallet
+   - Retry the transaction
+3. The recovery process handles everything automatically
+
+**Manual Troubleshooting (if automatic recovery doesn't work):**
 
 1. **First, check if you have sufficient balance:**
    - Verify your wallet balance is enough for the transaction amount
@@ -284,7 +298,7 @@ Transaction too large: Transaction size exceeds Solana's 1232 byte limit
    - When passkey credentials are cached inconsistently, transaction size calculation can exceed Solana's 1232 byte limit
    - This can happen with any transaction amount, not just small ones
 
-**Solution - Clear Cache and Reconnect:**
+**Manual Solution - Clear Cache and Reconnect:**
 
 **Disconnect wallet, clear cache and site data, then reconnect** - This resolves cached passkey credential issues:
 
@@ -299,6 +313,7 @@ After clearing cache and reconnecting, you should be able to send transactions o
 - The transaction is still signed using passkeys (WebAuthn)
 - The transaction is still executed via a smart wallet (PDA)
 - All transactions are verifiable on-chain via Solana Explorer
+- The demo includes automatic retry logic (up to 2 retries) with exponential backoff
 
 **Note:** The iframe security warning (`allow-scripts and allow-same-origin`) is a browser security notice from `portal.lazor.sh` and can be safely ignored. This is common in wallet SDKs and does not affect functionality.
 

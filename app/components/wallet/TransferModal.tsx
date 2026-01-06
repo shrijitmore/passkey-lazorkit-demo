@@ -46,6 +46,7 @@ import { useBalance } from '../../contexts/BalanceContext';
 import AlertMessage from '../ui/AlertMessage';
 import TransactionStatus from '../ui/TransactionStatus';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import ErrorRecovery from '../ui/ErrorRecovery';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -64,6 +65,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
   const [txStatus, setTxStatus] = useState<TransactionStatusType>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
+  const [errorInfo, setErrorInfo] = useState<ReturnType<typeof parseError> | null>(null);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -113,8 +115,9 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       const signature = await signTransaction({
         instructions: [instruction],
         onError: (error) => {
-          const errorInfo = parseError(error);
-          setError(errorInfo.userFriendly || errorInfo.message);
+          const parsedError = parseError(error);
+          setErrorInfo(parsedError);
+          setError(parsedError.userFriendly || parsedError.message);
         },
       });
 
@@ -139,8 +142,9 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       }, 3000);
     } catch (err: unknown) {
       setTxStatus('error');
-      const errorInfo = parseError(err);
-      setError(errorInfo.userFriendly || errorInfo.message || 'Transfer failed. Please check the address and amount.');
+      const parsedError = parseError(err);
+      setErrorInfo(parsedError);
+      setError(parsedError.userFriendly || parsedError.message || 'Transfer failed. Please check the address and amount.');
     }
   }, [smartWalletPubkey, balance, signTransaction, onSuccess, onClose]);
 
@@ -208,6 +212,53 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
               variant="error"
               message={error}
               onClose={() => setError(null)}
+            />
+          )}
+
+          {/* Error recovery component */}
+          {errorInfo && (
+            <ErrorRecovery
+              errorInfo={errorInfo}
+              show={errorInfo.recoverable === true && txStatus === 'error'}
+              onRecoverySuccess={() => {
+                setError(null);
+                setErrorInfo(null);
+              }}
+              onRetry={async () => {
+                // Retry the transaction
+                const recipientPubkey = new PublicKey(recipient);
+                const amountLamports = parseFloat(amount) * LAMPORTS_PER_SOL;
+                const instruction = SystemProgram.transfer({
+                  fromPubkey: smartWalletPubkey!,
+                  toPubkey: recipientPubkey,
+                  lamports: amountLamports,
+                });
+                const signature = await signTransaction({
+                  instructions: [instruction],
+                  onError: (error) => {
+                    const parsedError = parseError(error);
+                    setErrorInfo(parsedError);
+                    setError(parsedError.userFriendly || parsedError.message);
+                  },
+                });
+                setTxSignature(signature);
+                setTxStatus('confirming');
+                const connection = getConnection();
+                await connection.confirmTransaction(signature, 'confirmed');
+                setTxStatus('success');
+                dispatchWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, {
+                  signature,
+                  type: 'transfer',
+                });
+                dispatchWalletEvent(WALLET_EVENTS.BALANCE_UPDATED);
+                setTimeout(() => {
+                  onSuccess(signature);
+                  onClose();
+                }, 3000);
+              }}
+              onDismiss={() => {
+                setErrorInfo(null);
+              }}
             />
           )}
 

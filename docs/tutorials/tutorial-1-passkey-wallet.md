@@ -76,7 +76,7 @@ export default function LazorkitProviderWrapper({
       {...({
         isDebug: true,
         network: 'devnet',
-      } as any)}
+      } as PartialLazorkitProviderConfig)}
     >
       {children}
     </LazorkitProvider>
@@ -84,7 +84,7 @@ export default function LazorkitProviderWrapper({
 }
 ```
 
-**Note:** In the actual codebase, URLs are centralized in `app/lib/constants/urls.ts` for easier maintenance. The `isDebug` and `network` props use a type assertion (`as any`) because they may not be in the TypeScript definitions yet but are supported at runtime.
+**Note:** In the actual codebase, URLs are centralized in `app/lib/constants/urls.ts` for easier maintenance. Type definitions are available in `app/lib/types/lazorkit.ts` for proper TypeScript support. Import `PartialLazorkitProviderConfig` from the types file.
 
 **Key Configuration Options** (from [LazorkitProvider API](https://docs.lazorkit.com/react-sdk/provider)):
 
@@ -97,7 +97,7 @@ export default function LazorkitProviderWrapper({
 - `isDebug` (optional): Enables debug logging for development (used in this codebase)
 - `network` (optional): Sets the Solana network ('devnet', 'mainnet', etc.)
 
-**Note:** In this codebase, URLs are centralized in `app/lib/constants/urls.ts`, and `isDebug`/`network` use a type assertion (`as any`) as they may not be in TypeScript definitions yet.
+**Note:** In this codebase, URLs are centralized in `app/lib/constants/urls.ts`, and proper TypeScript types are available in `app/lib/types/lazorkit.ts` for `isDebug`/`network` props.
 
 ## Step 4: Wrap Your App with the Provider
 

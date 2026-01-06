@@ -79,7 +79,7 @@ import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
   {...({
     isDebug: true,
     network: 'devnet',
-  } as any)}
+  } as PartialLazorkitProviderConfig)}
 >
 ```
 
@@ -106,12 +106,12 @@ import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
 4. **isDebug** (optional):
    - Enables debug logging for development
    - Set to `true` in this codebase
-   - Uses type assertion `as any` because it may not be in TypeScript definitions yet
+   - Uses proper TypeScript types from `app/lib/types/lazorkit.ts`
 
 5. **network** (optional):
    - Sets the Solana network ('devnet', 'mainnet', etc.)
    - Set to 'devnet' in this codebase
-   - Uses type assertion `as any` because it may not be in TypeScript definitions yet
+   - Uses proper TypeScript types from `app/lib/types/lazorkit.ts`
 
 **Reference**: [LazorkitProvider API](https://docs.lazorkit.com/react-sdk/provider)
 

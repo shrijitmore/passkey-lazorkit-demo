@@ -2,10 +2,13 @@
  * Centralized error handling utilities
  */
 
+import { detectPasskeyCacheIssue } from './passkeyRecovery';
+
 export interface ErrorInfo {
   message: string;
   userFriendly?: string;
   code?: string;
+  recoverable?: boolean;
 }
 
 /**
@@ -112,13 +115,16 @@ export function parseError(error: unknown): ErrorInfo {
     };
   }
 
-  // Transaction too large
-  if (message.includes('Transaction too large') || message.includes('too large')) {
+  // Transaction too large - likely passkey cache issue
+  if (message.includes('Transaction too large') || message.includes('too large') || message.includes('1232 byte limit')) {
+    const isPasskeyCacheIssue = detectPasskeyCacheIssue(error);
+
     return {
       message,
       userFriendly:
         'Transaction too large: Transaction size exceeds Solana\'s 1232 byte limit.\n\nTroubleshooting Steps:\n\n1. First, check if you have sufficient balance:\n   • Verify your wallet balance is enough for the transaction amount\n   • Ensure you have enough SOL to cover transaction fees\n   • If balance is insufficient, fund your wallet and try again\n\n2. If you have sufficient balance, this is likely a passkey cache problem:\n   • Root Cause: Passkey cache inconsistencies can cause the paymaster pipeline to create oversized transactions\n   • When passkey credentials are cached inconsistently, transaction size calculation can exceed Solana\'s limit\n   • This can happen with any transaction amount\n\nSolution - Clear Cache and Reconnect:\n\nDisconnect wallet, clear cache and site data, then reconnect:\n\n• Chrome/Edge: Settings → Privacy → Clear browsing data → Select "Cached images and files" and "Site data"\n• Firefox: Settings → Privacy → Clear Data → Select "Cached Web Content" and "Site Preferences"\n• Safari: Develop → Empty Caches (enable Develop menu in Preferences)\n\nAfter clearing cache and reconnecting, you should be able to send transactions of any amount.\n\nNote: This is a passkey cache issue, not a transaction size limitation. Your transaction is still signed with passkeys and executed via smart wallet.',
       code: 'TRANSACTION_TOO_LARGE',
+      recoverable: isPasskeyCacheIssue,
     };
   }
 
@@ -126,6 +132,34 @@ export function parseError(error: unknown): ErrorInfo {
   return {
     message,
     userFriendly: message,
+    recoverable: false,
   };
+}
+
+/**
+ * Check if an error is a transaction size error
+ * 
+ * @param error - The error to check
+ * @returns true if the error is a transaction size error
+ * 
+ * @example
+ * ```ts
+ * try {
+ *   await signAndSendTransaction({ instructions });
+ * } catch (error) {
+ *   if (isTransactionSizeError(error)) {
+ *     // Handle transaction size error
+ *   }
+ * }
+ * ```
+ */
+export function isTransactionSizeError(error: unknown): boolean {
+  const message = getErrorMessage(error);
+  return (
+    message.includes('Transaction too large') ||
+    message.includes('too large') ||
+    message.includes('1232 byte limit') ||
+    message.includes('transaction size')
+  );
 }
 

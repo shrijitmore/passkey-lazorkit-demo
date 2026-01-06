@@ -85,15 +85,18 @@ export default function LazorkitProviderWrapper({
     []
   );
 
+  // Additional provider props with proper TypeScript types
+  const additionalProps: PartialLazorkitProviderConfig = {
+    isDebug: true,
+    network: 'devnet',
+  };
+
   return (
     <LazorkitProvider
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
-      {...({
-        isDebug: true,
-        network: 'devnet',
-      } as any)}
+      {...(additionalProps as PartialLazorkitProviderConfig)}
     >
       {children}
     </LazorkitProvider>
@@ -103,13 +106,14 @@ export default function LazorkitProviderWrapper({
 
 **Key Points:**
 - URLs are imported from `../../lib/constants/urls.ts` (centralized configuration)
+- Type definitions are imported from `../../lib/types/lazorkit.ts` for proper TypeScript support
 - `RPC_URL`: Solana RPC endpoint (use Devnet for testing)
 - `PORTAL_URL`: LazorKit's portal service for passkey management
 - `paymasterConfig`: Paymaster configuration (may sponsor fees for certain transaction types)
 - `isDebug: true`: Enables debug logging for development
 - `network: 'devnet'`: Sets the Solana network
 - `useMemo`: Prevents unnecessary re-renders
-- Type assertion `as any` is used for `isDebug` and `network` as they may not be in TypeScript definitions yet
+- Proper TypeScript types are used instead of `as any` assertions
 
 ### Step 2: Create Providers Wrapper (Optional but Recommended)
 
