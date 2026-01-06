@@ -227,10 +227,12 @@ export default function WalletPage() {
         <CardHeader className="p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2 gap-2">
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-              <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-[#f7931a] shadow-md">
-                <svg className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" fill="currentColor" />
-                </svg>
+              <div className="flex h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0 items-center justify-center">
+                <img 
+                  src="/sol.png" 
+                  alt="SOL" 
+                  className="h-full w-full object-contain"
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <CardDescription className="text-xs sm:text-sm text-muted-foreground">SOL Balance</CardDescription>
