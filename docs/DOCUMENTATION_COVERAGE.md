@@ -35,6 +35,12 @@ This document provides a comprehensive overview of what's covered in the documen
    - Tutorial: `docs/tutorials/tutorial-2-transactions.md`
    - Code: `docs/technical/CODE_EXPLANATION.md`
 
+7. **QR Code Scanner** ✅
+   - Implemented in: `app/components/ui/QRScanner.tsx`
+   - Used in: `app/wallet/page.tsx` (Send tab)
+   - Library: `qr-scanner` (v1.4.2)
+   - Features: Camera-based QR scanning, address validation, mobile responsive
+
 ### Custom Hooks
 
 1. **useTransactionSigning** ✅

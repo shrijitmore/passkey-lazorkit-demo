@@ -28,12 +28,14 @@ This repository showcases **real-world LazorKit SDK integration** with practical
 -  **Paymaster Integration** - Gasless transaction support via paymaster configuration
 -  **Message Signing** - Verify wallet ownership without on-chain transactions
 -  **Transaction History** - Real-time transaction tracking and display
+-  **QR Code Scanner** - Scan wallet addresses using device camera for easy transaction input
+-  **Error Recovery** - Automatic detection and recovery from passkey cache issues
 
 ### Additional Examples
 
 -  **Subscription Billing** - Recurring payments system using smart wallets
--  **Modern UI** - Clean, responsive interface with shadcn/ui components
--  **Mobile Responsive** - Works seamlessly on all devices
+-  **Modern UI** - Clean, responsive interface with shadcn/ui components and SOL icon branding
+-  **Mobile Responsive** - Works seamlessly on all devices with optimized mobile navigation
 
 ---
 
@@ -120,6 +122,9 @@ passkey-lazorkit-demo/
 │   │   │   ├── SubscriptionDemo.tsx     # Subscription billing example
 │   │   │   └── ...                      # Other subscription components
 │   │   ├── ui/                          # Reusable UI components
+│   │   │   ├── QRScanner.tsx            # QR code scanner component
+│   │   │   ├── ErrorRecovery.tsx        # Error recovery UI component
+│   │   │   └── ...                      # Other UI components
 │   │   └── ...                          # Other component folders
 │   ├── lib/
 │   │   ├── hooks/
@@ -475,7 +480,9 @@ This example clearly demonstrates:
    - Tutorial: [Tutorial 1: Passkey Wallet](./docs/tutorials/tutorial-1-passkey-wallet.md)
 
 2. **Smart Wallet Transactions** - Real SOL transfers with passkey signing
-   - See: `app/wallet/page.tsx` and `app/components/wallet/TransferModal.tsx`
+   - See: `app/wallet/page.tsx` (complete wallet page with Send/Receive/Verify tabs and QR scanner)
+   - See: `app/components/wallet/TransferModal.tsx` (transaction modal component)
+   - See: `app/components/ui/QRScanner.tsx` (QR code scanner for wallet addresses)
    - Tutorial: [Tutorial 2: Transactions](./docs/tutorials/tutorial-2-transactions.md)
 
 3. **Paymaster Integration** - Gasless transaction support

@@ -71,6 +71,8 @@ import { useMemo, type ReactNode } from 'react';
 
 // Import URL constants from centralized location
 import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
+// Import TypeScript types for proper type safety
+import type { PartialLazorkitProviderConfig } from '../../lib/types/lazorkit';
 
 export default function LazorkitProviderWrapper({
   children,
@@ -96,7 +98,7 @@ export default function LazorkitProviderWrapper({
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
-      {...(additionalProps as PartialLazorkitProviderConfig)}
+      {...additionalProps}
     >
       {children}
     </LazorkitProvider>
@@ -114,6 +116,19 @@ export default function LazorkitProviderWrapper({
 - `network: 'devnet'`: Sets the Solana network
 - `useMemo`: Prevents unnecessary re-renders
 - Proper TypeScript types are used instead of `as any` assertions
+
+**Provider Hierarchy:**
+- Your Next.js App → Root Layout → Providers Component → LazorkitProvider
+- LazorkitProvider provides: RPC URL, Portal URL, Paymaster Config
+- Wallet Context (internal state) → useWallet Hook → Your Components
+- Components can access: connect, disconnect, signAndSendTransaction, wallet state
+- Provider manages passkey authentication (WebAuthn) and biometric prompts
+
+**Key Points:**
+- `LazorkitProvider` wraps your app and provides wallet context
+- All components can access wallet functionality via `useWallet` hook
+- Provider manages passkey authentication and wallet state internally
+- Configuration is centralized in the provider wrapper
 
 ### Step 2: Create Providers Wrapper (Optional but Recommended)
 
@@ -445,6 +460,19 @@ Open [https://localhost:3000](https://localhost:3000)
 
 ## Deployment
 
+### Deployment Platform Comparison
+
+Before choosing a deployment platform, consider your needs:
+
+| Platform | Setup Time | Free Tier | HTTPS | Best For |
+|----------|-----------|-----------|-------|----------|
+| **Vercel** | 2 min | Yes | Auto | Next.js apps (recommended) |
+| **Netlify** | 3 min | Yes | Auto | Static sites |
+| **Render** | 5 min | Yes | Auto | Full-stack apps |
+| **GCP** | 10+ min | Yes | Manual | Enterprise, existing GCP users |
+
+**Recommendation:** For Next.js applications, **Vercel** is the fastest and easiest option with zero configuration. All platforms provide automatic HTTPS, which is required for transactions.
+
 ### Option 1: Deploy to Vercel (Recommended)
 
 **Why Vercel?**
@@ -470,37 +498,102 @@ vercel
 
 ### Option 2: Deploy to Google Cloud Platform (GCP)
 
+**Prerequisites:**
+- Google Cloud account with billing enabled
+- `gcloud` CLI installed ([Install Guide](https://cloud.google.com/sdk/docs/install))
+- Project created: `gcloud projects create YOUR_PROJECT_ID`
+
 **Using Cloud Run (Recommended for GCP):**
 
+1. **Set up your project:**
 ```bash
-# Build the Next.js app
-npm run build
+# Set your project
+gcloud config set project YOUR_PROJECT_ID
 
-# Create a Dockerfile (if not exists)
-# Then deploy to Cloud Run:
+# Enable required APIs
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+```
+
+2. **Create a Dockerfile** (if not exists):
+```dockerfile
+FROM node:20-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+# Production image
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV production
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+EXPOSE 3000
+ENV PORT 3000
+
+CMD ["node", "server.js"]
+```
+
+3. **Update `next.config.js`** for standalone output:
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'standalone',
+};
+
+module.exports = nextConfig;
+```
+
+4. **Deploy to Cloud Run:**
+```bash
+# Build and deploy
 gcloud run deploy lazorkit-demo \
   --source . \
   --platform managed \
   --region us-central1 \
-  --allow-unauthenticated
+  --allow-unauthenticated \
+  --port 3000
 ```
 
 **Using App Engine:**
 
-1. Create `app.yaml`:
+1. **Create `app.yaml`:**
 ```yaml
 runtime: nodejs20
 env: standard
 automatic_scaling:
   min_instances: 1
+  max_instances: 10
 ```
 
-2. Deploy:
+2. **Deploy:**
 ```bash
 gcloud app deploy
 ```
 
-**Note:** GCP requires more setup (Dockerfile, app.yaml, billing account). Vercel is faster for Next.js apps.
+3. **Access your app:**
+```bash
+gcloud app browse
+```
+
+**HTTPS Configuration:**
+- Cloud Run: HTTPS is automatically provided
+- App Engine: HTTPS is automatically provided
+- Custom domains: Configure in Cloud Console → App Engine → Settings → Custom Domains
+
+**Note:** GCP requires more setup (Dockerfile, app.yaml, billing account) compared to Vercel. For Next.js apps, Vercel is faster and easier. Use GCP if you're already using Google Cloud services or need enterprise features.
 
 ### Option 3: Deploy to Render
 
