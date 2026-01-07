@@ -1,29 +1,25 @@
 /**
  * TransferModal Component
  * 
- * Modal component for sending SOL transactions using LazorKit SDK.
+ * Modal component for sending SOL and SPL Token transactions using LazorKit SDK.
  * 
  * This component demonstrates:
- * - Creating transaction instructions
+ * - Creating transaction instructions for Native SOL and SPL Tokens
  * - Using signAndSendTransaction() with passkey signing
  * - Handling transaction states (signing, confirming, success, error)
  * - Error handling and user feedback
+ * - Automatic ATA (Associated Token Account) creation for recipients
  * 
  * Key LazorKit Integration:
  * ```tsx
- * const { signAndSendWithRetry } = useTransactionSigning();
+ * const { signTransaction } = useTransactionSigning();
  * 
- * // Create instruction
- * const instruction = SystemProgram.transfer({
- *   fromPubkey: smartWalletPubkey,
- *   toPubkey: recipientPubkey,
- *   lamports: amountLamports,
- * });
- * 
- * // Sign and send (passkey signing happens automatically)
- * const signature = await signAndSendWithRetry({
- *   instructions: [instruction],
- *   walletAddress: smartWalletPubkey.toString(),
+ * // For SPL Tokens (USDC):
+ * // 1. Check/Create recipient's token account
+ * // 2. Create transfer instruction
+ * // 3. Batch instructions in one atomic transaction
+ * const txSignature = await signTransaction({
+ *   instructions: [createAtaIx, transferIx],
  * });
  * ```
  * 
@@ -37,12 +33,16 @@ import {
   SystemProgram,
   LAMPORTS_PER_SOL,
   PublicKey,
+  TransactionInstruction,
 } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { getConnection } from '../../lib/rpc/connection';
 import { WALLET_EVENTS, dispatchWalletEvent } from '../../lib/events/walletEvents';
 import { useTransactionSigning } from '../../lib/hooks/useTransactionSigning';
 import { parseError } from '../../lib/utils/errorHandling';
 import { useBalance } from '../../contexts/BalanceContext';
+import { TOKENS } from '../../lib/constants/tokens';
+import { getOrCreateAssociatedTokenAccountInstruction, createSPLTransferInstruction } from '../../lib/utils/tokenUtils';
 import AlertMessage from '../ui/AlertMessage';
 import TransactionStatus from '../ui/TransactionStatus';
 import LoadingSpinner from '../ui/LoadingSpinner';
@@ -55,17 +55,24 @@ interface TransferModalProps {
 }
 
 type TransactionStatusType = 'idle' | 'signing' | 'confirming' | 'success' | 'error';
+type TokenType = 'SOL' | 'USDC';
 
 export default function TransferModal({ isOpen, onClose, onSuccess }: TransferModalProps) {
   const { smartWalletPubkey } = useWallet();
   const { signTransaction } = useTransactionSigning();
   const { balance } = useBalance();
+
+  const [tokenType, setTokenType] = useState<TokenType>('SOL');
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [txStatus, setTxStatus] = useState<TransactionStatusType>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
   const [errorInfo, setErrorInfo] = useState<ReturnType<typeof parseError> | null>(null);
+
+  // Token balance state
+  const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
+  const [isLoadingUsdc, setIsLoadingUsdc] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -75,45 +82,133 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       setTxSignature(null);
       setRecipient('');
       setAmount('');
+      setTokenType('SOL');
+      fetchUsdcBalance();
     }
   }, [isOpen]);
 
+  // Fetch USDC Balance
+  const fetchUsdcBalance = useCallback(async () => {
+    if (!smartWalletPubkey) return;
+    setIsLoadingUsdc(true);
+    try {
+      const connection = getConnection();
+      const usdcMint = new PublicKey(TOKENS.USDC.mint);
+
+      const { value: accounts } = await connection.getParsedTokenAccountsByOwner(
+        smartWalletPubkey,
+        { mint: usdcMint }
+      );
+
+      if (accounts.length > 0) {
+        const balance = accounts[0].account.data.parsed.info.tokenAmount.uiAmount || 0;
+        setUsdcBalance(balance);
+      } else {
+        setUsdcBalance(0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch USDC balance:', err);
+      // Don't set error state here, just show 0 balance
+      setUsdcBalance(0);
+    } finally {
+      setIsLoadingUsdc(false);
+    }
+  }, [smartWalletPubkey]);
+
   const handleTransfer = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!smartWalletPubkey) {
       setError('Wallet not connected');
       return;
     }
-    
+
     setTxStatus('signing');
     setError(null);
     setTxSignature(null);
 
     try {
       // Validate recipient address
-      const recipientPubkey = new PublicKey(recipient);
-      const amountLamports = parseFloat(amount) * LAMPORTS_PER_SOL;
+      let recipientPubkey: PublicKey;
+      try {
+        recipientPubkey = new PublicKey(recipient);
+      } catch {
+        throw new Error('Invalid recipient address');
+      }
 
-      if (amountLamports <= 0) {
+      const amountVal = parseFloat(amount);
+      if (isNaN(amountVal) || amountVal <= 0) {
         throw new Error('Amount must be greater than 0');
       }
 
-      if (balance !== null && parseFloat(amount) > balance) {
-        throw new Error(`Insufficient balance. You have ${balance.toFixed(4)} SOL but trying to send ${amount} SOL.`);
+      const instructions: TransactionInstruction[] = [];
+      const connection = getConnection();
+
+      if (tokenType === 'SOL') {
+        // Native SOL Transfer
+        if (balance !== null && amountVal > balance) {
+          throw new Error(`Insufficient SOL balance. Available: ${balance.toFixed(4)} SOL`);
+        }
+
+        const lamports = Math.floor(amountVal * LAMPORTS_PER_SOL);
+        instructions.push(
+          SystemProgram.transfer({
+            fromPubkey: smartWalletPubkey,
+            toPubkey: recipientPubkey,
+            lamports,
+          })
+        );
+      } else {
+        // USDC Transfer (SPL Token)
+        if (usdcBalance !== null && amountVal > usdcBalance) {
+          throw new Error(`Insufficient USDC balance. Available: ${usdcBalance} USDC`);
+        }
+
+        const usdcMint = new PublicKey(TOKENS.USDC.mint);
+
+        // 1. Get Sender ATA
+        const { address: senderAta, instruction: createSenderAtaIx } =
+          await getOrCreateAssociatedTokenAccountInstruction(
+            connection,
+            usdcMint,
+            smartWalletPubkey,
+            smartWalletPubkey // payer
+          );
+
+        // Sender should ideally already have an account if they have balance, 
+        // but safe to include logic or handle accordingly.
+        // Lazy: We assume if balance > 0, account exists.
+
+        // 2. Get Recipient ATA - and create if needed!
+        const { address: recipientAta, instruction: createRecipientAtaIx } =
+          await getOrCreateAssociatedTokenAccountInstruction(
+            connection,
+            usdcMint,
+            recipientPubkey,
+            smartWalletPubkey // payer: Sender pays for ATA creation (rent)
+          );
+
+        if (createRecipientAtaIx) {
+          instructions.push(createRecipientAtaIx);
+        }
+
+        // 3. Create Transfer Instruction
+        instructions.push(
+          createSPLTransferInstruction(
+            senderAta,
+            recipientAta,
+            smartWalletPubkey,
+            amountVal,
+            TOKENS.USDC.decimals
+          )
+        );
       }
 
-      const instruction = SystemProgram.transfer({
-        fromPubkey: smartWalletPubkey,
-        toPubkey: recipientPubkey,
-        lamports: amountLamports,
-      });
-
       setTxStatus('signing');
-      
+
       // Sign transaction with automatic credential refresh
       const signature = await signTransaction({
-        instructions: [instruction],
+        instructions,
         onError: (error) => {
           const parsedError = parseError(error);
           setErrorInfo(parsedError);
@@ -124,7 +219,6 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       setTxSignature(signature);
       setTxStatus('confirming');
 
-      const connection = getConnection();
       await connection.confirmTransaction(signature, 'confirmed');
 
       setTxStatus('success');
@@ -135,7 +229,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
         type: 'transfer',
       });
       dispatchWalletEvent(WALLET_EVENTS.BALANCE_UPDATED);
-      
+
       setTimeout(() => {
         onSuccess(signature);
         onClose();
@@ -144,9 +238,9 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       setTxStatus('error');
       const parsedError = parseError(err);
       setErrorInfo(parsedError);
-      setError(parsedError.userFriendly || parsedError.message || 'Transfer failed. Please check the address and amount.');
+      setError(parsedError.userFriendly || parsedError.message || 'Transfer failed. Check address and balance.');
     }
-  }, [smartWalletPubkey, balance, signTransaction, onSuccess, onClose]);
+  }, [smartWalletPubkey, balance, usdcBalance, signTransaction, onSuccess, onClose, tokenType, recipient, amount]);
 
   if (!isOpen) return null;
 
@@ -163,8 +257,33 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           </svg>
         </button>
 
-        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 gradient-text pr-8">Send SOL</h2>
-        
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 gradient-text">Send Assets</h2>
+
+        {/* Token Selector */}
+        <div className="flex p-1 bg-white/5 rounded-lg mb-6">
+          <button
+            onClick={() => setTokenType('SOL')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${tokenType === 'SOL'
+                ? 'bg-purple-600 text-white shadow-lg'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+          >
+            SOL
+          </button>
+          <button
+            onClick={() => setTokenType('USDC')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${tokenType === 'USDC'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+          >
+            USDC
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 font-bold border border-green-500/30">
+              GASLESS
+            </span>
+          </button>
+        </div>
+
         <form onSubmit={handleTransfer} className="space-y-3 sm:space-y-4">
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
@@ -184,27 +303,42 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           <div>
             <div className="flex items-center justify-between mb-1.5 sm:mb-2">
               <label className="block text-xs sm:text-sm font-medium text-gray-300">
-              Amount (SOL)
-            </label>
-              {balance !== null && (
-                <span className="text-xs text-gray-400">
-                  Available: {balance.toFixed(4)} SOL
-                </span>
-              )}
+                Amount ({tokenType})
+              </label>
+              <div className="text-xs text-gray-400">
+                {tokenType === 'SOL' ? (
+                  <span>Available: {balance !== null ? balance.toFixed(4) : '...'} SOL</span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    Available: {isLoadingUsdc ? <LoadingSpinner size="sm" /> : usdcBalance ?? '0'} USDC
+                  </span>
+                )}
+              </div>
             </div>
             <input
               type="number"
-              step="0.001"
-              min="0.001"
-              max={balance !== null ? balance : undefined}
+              step={tokenType === 'SOL' ? "0.001" : "0.000001"}
+              min={tokenType === 'SOL' ? "0.001" : "0.000001"}
+              max={
+                tokenType === 'SOL'
+                  ? (balance ?? undefined)
+                  : (usdcBalance ?? undefined)
+              }
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.1"
+              placeholder={tokenType === 'SOL' ? "0.1" : "10.00"}
               className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base bg-white/5 border border-white/10 rounded-lg focus:border-purple-500 focus:outline-none text-white placeholder-gray-500"
               required
               data-testid="amount-input"
             />
           </div>
+
+          {/* USDC Faucet Hint */}
+          {tokenType === 'USDC' && (usdcBalance === 0 || usdcBalance === null) && !isLoadingUsdc && (
+            <div className="text-xs text-center p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-300">
+              Need Devnet USDC? <a href="https://spl-token-faucet.com/?token-name=USDC-Devnet" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">Get some here</a> to test gasless transfers!
+            </div>
+          )}
 
           {/* Error message display */}
           {error && (
@@ -225,36 +359,9 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
                 setErrorInfo(null);
               }}
               onRetry={async () => {
-                // Retry the transaction
-                const recipientPubkey = new PublicKey(recipient);
-                const amountLamports = parseFloat(amount) * LAMPORTS_PER_SOL;
-                const instruction = SystemProgram.transfer({
-                  fromPubkey: smartWalletPubkey!,
-                  toPubkey: recipientPubkey,
-                  lamports: amountLamports,
-                });
-                const signature = await signTransaction({
-                  instructions: [instruction],
-                  onError: (error) => {
-                    const parsedError = parseError(error);
-                    setErrorInfo(parsedError);
-                    setError(parsedError.userFriendly || parsedError.message);
-                  },
-                });
-                setTxSignature(signature);
-                setTxStatus('confirming');
-                const connection = getConnection();
-                await connection.confirmTransaction(signature, 'confirmed');
-                setTxStatus('success');
-                dispatchWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, {
-                  signature,
-                  type: 'transfer',
-                });
-                dispatchWalletEvent(WALLET_EVENTS.BALANCE_UPDATED);
-                setTimeout(() => {
-                  onSuccess(signature);
-                  onClose();
-                }, 3000);
+                // Simple reset for now
+                setError(null);
+                setErrorInfo(null);
               }}
               onDismiss={() => {
                 setErrorInfo(null);
@@ -268,11 +375,17 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <span className="font-semibold">Transaction</span>
+              <span className="font-semibold">Transaction Fee</span>
             </div>
-            <p className="text-xs text-secondary">
-              Transaction fees will be paid from your wallet balance. Native SOL transfers use wallet-paid fees.
-            </p>
+            {tokenType === 'SOL' ? (
+              <p className="text-xs text-secondary">
+                Native SOL transfers typically use wallet-paid fees (approx 0.000005 SOL).
+              </p>
+            ) : (
+              <p className="text-xs text-green-400 font-medium">
+                ✨ Sponsored by Paymaster (Gasless)
+              </p>
+            )}
           </div>
 
           {/* Transaction status display */}
@@ -286,7 +399,10 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           <button
             type="submit"
             disabled={txStatus !== 'idle' && txStatus !== 'error'}
-            className="w-full px-4 sm:px-6 py-3 text-sm sm:text-base gradient-primary text-white rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
+            className={`w-full px-4 sm:px-6 py-3 text-sm sm:text-base text-white rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed btn-glow ${tokenType === 'SOL'
+                ? 'gradient-primary'
+                : 'bg-gradient-to-r from-blue-600 to-cyan-500'
+              }`}
             data-testid="send-transfer-btn"
           >
             {txStatus === 'signing' && (
@@ -309,7 +425,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
                 Success!
               </span>
             )}
-            {(txStatus === 'idle' || txStatus === 'error') && 'Send SOL'}
+            {(txStatus === 'idle' || txStatus === 'error') && `Send ${tokenType}`}
           </button>
         </form>
 

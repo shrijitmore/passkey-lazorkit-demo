@@ -1,33 +1,19 @@
 /**
  * Wallet Page
  * 
- * Complete wallet management page demonstrating LazorKit SDK integration:
- * - Send SOL transactions with passkey signing
- * - Receive SOL (display QR code and address)
- * - Message signing for wallet verification
- * - Balance display with refresh
- * 
- * This page shows how to:
- * 1. Use useWallet() hook to get wallet state
- * 2. Create transaction instructions
- * 3. Sign and send transactions with signAndSendTransaction()
- * 4. Sign messages with signMessage()
- * 5. Handle transaction errors gracefully
- * 
- * Key LazorKit Methods Used:
- * - signAndSendTransaction({ instructions }) - Signs with passkey and sends transaction
- * - signMessage(message) - Signs a message for wallet verification
- * - smartWalletPubkey - The wallet address (PDA)
- * 
- * @see Tutorial 2: Transactions for detailed explanation
+ * Complete wallet management:
+ * - Send Assets (SOL and USDC with gasless option)
+ * - Receive Assets (separate addresses for SOL and USDC with faucets)
+ * - Message signing for verification
  */
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet } from '@lazorkit/wallet';
-import { LAMPORTS_PER_SOL, SystemProgram, PublicKey } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL, SystemProgram, PublicKey, TransactionInstruction } from '@solana/web3.js';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { getConnection } from '../lib/rpc/connection';
-import { Send, Download, Copy, Check, MessageSquare, Shield, RefreshCw, Loader2, QrCode } from 'lucide-react';
+import { Send, Download, Copy, Check, Shield, RefreshCw, Loader2, QrCode, ExternalLink, Coins } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import AppLayout from '../components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -37,51 +23,142 @@ import { Button } from '../components/ui/button';
 import { WALLET_EVENTS, dispatchWalletEvent } from '../lib/events/walletEvents';
 import { useBalance } from '../contexts/BalanceContext';
 import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
+import { useAllTokenBalances } from '../lib/hooks/useAllTokenBalances';
 import { parseError } from '../lib/utils/errorHandling';
 import { useCopyToClipboard } from '../lib/hooks/useCopyToClipboard';
 import { getTransactionExplorerUrl } from '../lib/utils/explorerUrls';
-import AlertMessage from '../components/ui/AlertMessage';
-import TransactionStatus from '../components/ui/TransactionStatus';
+import { TOKENS } from '../lib/constants/tokens';
+import { FAUCET_URL } from '../lib/constants/urls';
+import { getOrCreateAssociatedTokenAccountInstruction, createSPLTransferInstruction } from '../lib/utils/tokenUtils';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
-import ErrorRecovery from '../components/ui/ErrorRecovery';
 import QRScanner from '../components/ui/QRScanner';
+
+type TokenType = 'SOL' | 'USDC';
 
 export default function WalletPage() {
   const { smartWalletPubkey, isConnected, signMessage } = useWallet();
   const { signTransaction } = useTransactionSigning();
-  const { balance, isLoadingBalance, refreshBalance } = useBalance();
+  const { balance: solBalance, isLoadingBalance: isLoadingSol, refreshBalance: refreshSol } = useBalance();
+  const { tokens, isLoading: isLoadingTokens, refresh: refreshTokens } = useAllTokenBalances(smartWalletPubkey);
+
+  // Send form state
+  const [tokenType, setTokenType] = useState<TokenType>('SOL');
   const [sendAmount, setSendAmount] = useState('');
   const [recipientAddress, setRecipientAddress] = useState('');
   const [txStatus, setTxStatus] = useState<'idle' | 'signing' | 'confirming' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
+
+  // Receive state
+  const [usdcAta, setUsdcAta] = useState<string>('');
+  const [usdcAtaExists, setUsdcAtaExists] = useState<boolean>(false);
+  const [creatingAta, setCreatingAta] = useState<boolean>(false);
+
+  // Verify state
   const [messageToSign, setMessageToSign] = useState('');
   const [signStatus, setSignStatus] = useState<'idle' | 'signing' | 'success' | 'error'>('idle');
   const [signature, setSignature] = useState<string | null>(null);
   const [signError, setSignError] = useState<string | null>(null);
-  const [errorInfo, setErrorInfo] = useState<ReturnType<typeof parseError> | null>(null);
+
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   const walletAddress = useMemo(() => smartWalletPubkey?.toString() || '', [smartWalletPubkey]);
-  const usdEquivalent = useMemo(() => (balance !== null ? (balance * 150).toFixed(2) : '0.00'), [balance]);
-  const [qrSize, setQrSize] = useState(232);
-  
-  // Use copy to clipboard hook
   const { copy: copyAddress, copied } = useCopyToClipboard();
+  const { copy: copyUsdcAta, copied: copiedUsdc } = useCopyToClipboard();
 
-  // Calculate responsive QR code size
+  // Fetch USDC ATA address and check if it exists
   useEffect(() => {
-    const updateQrSize = () => {
-      if (typeof window !== 'undefined') {
-        const maxSize = Math.min(232, window.innerWidth - 120);
-        setQrSize(Math.max(200, maxSize));
+    const fetchAta = async () => {
+      if (smartWalletPubkey) {
+        try {
+          const connection = getConnection();
+          const usdcMint = new PublicKey(TOKENS.USDC.mint);
+          // allowOwnerOffCurve: true is required because LazorKit smart wallets are PDAs
+          const ata = await getAssociatedTokenAddress(usdcMint, smartWalletPubkey, true);
+          setUsdcAta(ata.toString());
+
+          // Check if ATA actually exists on-chain
+          try {
+            const accountInfo = await connection.getAccountInfo(ata);
+            setUsdcAtaExists(accountInfo !== null);
+          } catch {
+            setUsdcAtaExists(false);
+          }
+        } catch (e) {
+          console.error('Failed to get USDC ATA:', e);
+          setUsdcAta(smartWalletPubkey.toString());
+          setUsdcAtaExists(false);
+        }
       }
     };
-    
-    updateQrSize();
-    window.addEventListener('resize', updateQrSize);
-    return () => window.removeEventListener('resize', updateQrSize);
-  }, []);
+    fetchAta();
+  }, [smartWalletPubkey]);
+
+  // Fetch tokens on mount
+  useEffect(() => {
+    if (smartWalletPubkey) {
+      const timer = setTimeout(() => refreshTokens(), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [smartWalletPubkey]);
+
+  // Helper to get USDC balance from tokens array
+  const usdcToken = tokens.find(t => t.symbol === 'USDC');
+  const usdcBalance = usdcToken?.balance || 0;
+
+  const refreshAll = () => {
+    refreshSol();
+    refreshTokens();
+  };
+
+  // Create USDC ATA - THIS IS THE KEY MISSING PIECE!
+  // The ATA must exist on-chain before tokens can be received
+  const createUsdcAta = async () => {
+    if (!smartWalletPubkey) return;
+
+    setCreatingAta(true);
+    setError(null);
+
+    try {
+      const connection = getConnection();
+      const usdcMint = new PublicKey(TOKENS.USDC.mint);
+
+      const { address, instruction } = await getOrCreateAssociatedTokenAccountInstruction(
+        connection,
+        usdcMint,
+        smartWalletPubkey,
+        smartWalletPubkey
+      );
+
+      if (!instruction) {
+        // ATA already exists
+        setUsdcAtaExists(true);
+        setCreatingAta(false);
+        return;
+      }
+
+      // Sign and send the transaction to create the ATA
+      await signTransaction({
+        instructions: [instruction],
+        onError: (err) => {
+          const parsed = parseError(err);
+          setError(parsed.userFriendly || parsed.message);
+        },
+      });
+
+      // Update state
+      setUsdcAtaExists(true);
+      setUsdcAta(address.toString());
+
+      // Refresh tokens to pick up the new account
+      setTimeout(() => refreshTokens(), 2000);
+    } catch (err) {
+      const parsed = parseError(err);
+      setError(parsed.userFriendly || parsed.message || 'Failed to create token account');
+    } finally {
+      setCreatingAta(false);
+    }
+  };
 
   const handleSend = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,44 +172,62 @@ export default function WalletPage() {
     setTxSignature(null);
 
     try {
-      const recipientPubkey = new PublicKey(recipientAddress);
-      const amountLamports = parseFloat(sendAmount) * LAMPORTS_PER_SOL;
+      let recipientPubkey: PublicKey;
+      try {
+        recipientPubkey = new PublicKey(recipientAddress);
+      } catch {
+        throw new Error('Invalid recipient address');
+      }
 
-      if (amountLamports <= 0) {
+      const amountVal = parseFloat(sendAmount);
+      if (isNaN(amountVal) || amountVal <= 0) {
         throw new Error('Amount must be greater than 0');
       }
 
-      if (balance !== null && parseFloat(sendAmount) > balance) {
-        throw new Error(`Insufficient balance. You have ${balance.toFixed(4)} SOL`);
+      const instructions: TransactionInstruction[] = [];
+      const connection = getConnection();
+
+      if (tokenType === 'SOL') {
+        if (solBalance !== null && amountVal > solBalance) {
+          throw new Error(`Insufficient SOL. Available: ${solBalance.toFixed(4)} SOL`);
+        }
+        const lamports = Math.floor(amountVal * LAMPORTS_PER_SOL);
+        instructions.push(
+          SystemProgram.transfer({
+            fromPubkey: smartWalletPubkey,
+            toPubkey: recipientPubkey,
+            lamports,
+          })
+        );
+      } else {
+        if (amountVal > usdcBalance) {
+          throw new Error(`Insufficient USDC. Available: ${usdcBalance.toFixed(2)} USDC`);
+        }
+        const usdcMint = new PublicKey(TOKENS.USDC.mint);
+        const { address: senderAta } = await getOrCreateAssociatedTokenAccountInstruction(
+          connection, usdcMint, smartWalletPubkey, smartWalletPubkey
+        );
+        const { address: recipientAta, instruction: createAtaIx } = await getOrCreateAssociatedTokenAccountInstruction(
+          connection, usdcMint, recipientPubkey, smartWalletPubkey
+        );
+        if (createAtaIx) instructions.push(createAtaIx);
+        instructions.push(createSPLTransferInstruction(senderAta, recipientAta, smartWalletPubkey, amountVal, TOKENS.USDC.decimals));
       }
 
-      const instruction = SystemProgram.transfer({
-        fromPubkey: smartWalletPubkey,
-        toPubkey: recipientPubkey,
-        lamports: amountLamports,
-      });
-
-      // Sign transaction with automatic credential refresh
-      const signature = await signTransaction({
-        instructions: [instruction],
-        onError: (error) => {
-          const parsedError = parseError(error);
-          setErrorInfo(parsedError);
-          setError(parsedError.userFriendly || parsedError.message);
+      const sig = await signTransaction({
+        instructions,
+        onError: (err) => {
+          const parsed = parseError(err);
+          setError(parsed.userFriendly || parsed.message);
         },
       });
 
-      setTxSignature(signature);
+      setTxSignature(sig);
       setTxStatus('confirming');
-
-      const connection = getConnection();
-      await connection.confirmTransaction(signature, 'confirmed');
-
+      await connection.confirmTransaction(sig, 'confirmed');
       setTxStatus('success');
-      dispatchWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, {
-        signature,
-        type: 'transfer',
-      });
+
+      dispatchWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, { signature: sig, type: 'transfer' });
       dispatchWalletEvent(WALLET_EVENTS.BALANCE_UPDATED);
 
       setTimeout(() => {
@@ -140,36 +235,30 @@ export default function WalletPage() {
         setRecipientAddress('');
         setTxStatus('idle');
         setTxSignature(null);
+        refreshAll();
       }, 3000);
     } catch (err: unknown) {
       setTxStatus('error');
-      const parsedError = parseError(err);
-      setErrorInfo(parsedError);
-      setError(parsedError.userFriendly || parsedError.message || 'Transaction failed. Please try again.');
+      const parsed = parseError(err);
+      setError(parsed.userFriendly || parsed.message || 'Transaction failed');
     }
-  }, [smartWalletPubkey, balance, sendAmount, recipientAddress, signTransaction]);
+  }, [smartWalletPubkey, solBalance, tokens, tokenType, sendAmount, recipientAddress, signTransaction]);
 
   const handleScan = useCallback((result: string) => {
     try {
-      // Validate if the scanned result is a valid Solana address
       new PublicKey(result);
       setRecipientAddress(result);
       setShowQRScanner(false);
-      setError(null); // Clear any previous errors
-    } catch (e) {
-      setError('Invalid Solana address scanned. Please try again.');
+      setError(null);
+    } catch {
+      setError('Invalid Solana address scanned');
     }
   }, []);
 
   const handleSignMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signMessage) {
-      setSignError('Sign message not available');
-      return;
-    }
-
-    if (!messageToSign.trim()) {
-      setSignError('Please enter a message to sign');
+    if (!signMessage || !messageToSign.trim()) {
+      setSignError('Please enter a message');
       return;
     }
 
@@ -181,7 +270,6 @@ export default function WalletPage() {
       const result = await signMessage(messageToSign);
       setSignature(result.signature);
       setSignStatus('success');
-      
       setTimeout(() => {
         setMessageToSign('');
         setSignStatus('idle');
@@ -189,15 +277,10 @@ export default function WalletPage() {
       }, 5000);
     } catch (err: unknown) {
       setSignStatus('error');
-      const errorInfo = parseError(err);
-      setSignError(errorInfo.userFriendly || errorInfo.message || 'Message signing failed. Please try again.');
+      const parsed = parseError(err);
+      setSignError(parsed.userFriendly || parsed.message || 'Signing failed');
     }
   }, [signMessage, messageToSign]);
-
-  const explorerUrl = useMemo(
-    () => (txSignature ? getTransactionExplorerUrl(txSignature) : ''),
-    [txSignature]
-  );
 
   if (!isConnected) {
     return (
@@ -214,381 +297,422 @@ export default function WalletPage() {
     );
   }
 
-
   return (
     <AppLayout>
-      <div className="mb-4 sm:mb-6 md:mb-8">
-        <h1 className="mb-2 text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Wallet</h1>
-        <p className="text-xs sm:text-sm md:text-base text-muted-foreground">Send and receive SOL on Solana Devnet</p>
-      </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Wallet</h1>
+            <p className="text-muted-foreground text-sm">Send and receive assets on Solana Devnet</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={refreshAll} disabled={isLoadingSol || isLoadingTokens}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${(isLoadingSol || isLoadingTokens) ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
 
-      {/* Balance Card */}
-      <Card className="mb-4 sm:mb-6 border-2 border-primary/20 bg-gradient-to-br from-card to-card/50">
-        <CardHeader className="p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-              <div className="flex h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0 items-center justify-center">
-                <img 
-                  src="/sol.png" 
-                  alt="SOL" 
-                  className="h-full w-full object-contain"
+        {/* Balance Overview */}
+        <Card className="border-primary/20">
+          <CardContent className="p-4 sm:p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <img
+                  src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
+                  alt="SOL"
+                  className="w-8 h-8"
                 />
+                <div>
+                  <p className="text-xs text-muted-foreground">SOL Balance</p>
+                  <p className="text-lg font-bold text-foreground">{(solBalance || 0).toFixed(4)}</p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <CardDescription className="text-xs sm:text-sm text-muted-foreground">SOL Balance</CardDescription>
-                {isLoadingBalance && balance === null ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-muted-foreground" />
-                    <CardTitle className="text-xl sm:text-2xl md:text-3xl text-foreground">0.00000000</CardTitle>
-                  </div>
-                ) : (
-                  <CardTitle className="text-xl sm:text-2xl md:text-3xl text-foreground truncate">
-                    {balance !== null ? balance.toFixed(8) : '0.00000000'}
-                  </CardTitle>
-                )}
+              <div className="flex items-center gap-3">
+                <img src={TOKENS.USDC.logoUrl} alt="USDC" className="w-8 h-8" />
+                <div>
+                  <p className="text-xs text-muted-foreground">USDC Balance</p>
+                  <p className="text-lg font-bold text-foreground">{usdcBalance.toFixed(2)}</p>
+                </div>
               </div>
             </div>
-            <button
-              onClick={refreshBalance}
-              disabled={isLoadingBalance}
-              className="p-2 rounded-lg hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              title="Refresh balance"
-              aria-label="Refresh balance"
-            >
-              <RefreshCw
-                className={`h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground ${isLoadingBalance ? 'animate-spin' : ''}`}
-              />
-            </button>
-          </div>
-          <CardDescription className="mt-2 text-xs sm:text-sm text-muted-foreground">≈ ${usdEquivalent} USD</CardDescription>
-        </CardHeader>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Send/Receive/Verify Tabs */}
-      <Tabs defaultValue="send" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 sm:p-1.5 h-auto min-h-[52px] sm:min-h-[48px] gap-1 sm:gap-2 mb-4 sm:mb-6">
-          <TabsTrigger 
-            value="send" 
-            className="flex flex-col items-center justify-center gap-1 text-[11px] sm:text-xs md:text-sm data-[state=active]:bg-background px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 h-auto min-h-[48px] sm:min-h-[44px] transition-all touch-manipulation"
-          >
-            <Send className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" />
-            <span className="leading-tight font-medium">Send</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="receive" 
-            className="flex flex-col items-center justify-center gap-1 text-[11px] sm:text-xs md:text-sm data-[state=active]:bg-background px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 h-auto min-h-[48px] sm:min-h-[44px] transition-all touch-manipulation"
-          >
-            <Download className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" />
-            <span className="leading-tight font-medium">Receive</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="verify" 
-            className="flex flex-col items-center justify-center gap-1 text-[11px] sm:text-xs md:text-sm data-[state=active]:bg-background px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 h-auto min-h-[48px] sm:min-h-[44px] transition-all touch-manipulation"
-          >
-            <Shield className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" />
-            <span className="leading-tight font-medium">Verify</span>
-          </TabsTrigger>
-        </TabsList>
+        {/* Main Tabs */}
+        <Tabs defaultValue="send" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="send" className="flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              <span>Send</span>
+            </TabsTrigger>
+            <TabsTrigger value="receive" className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              <span>Receive</span>
+            </TabsTrigger>
+            <TabsTrigger value="verify" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              <span>Verify</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="send" className="mt-4 sm:mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-foreground">Send SOL</CardTitle>
-              <CardDescription>Transfer SOL to another wallet address</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSend} className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="recipient" className="text-sm font-medium text-foreground">
-                    Recipient Address
-                  </label>
-                  <div className="relative">
+          {/* SEND TAB */}
+          <TabsContent value="send">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-foreground">Send Assets</CardTitle>
+                <CardDescription>Transfer SOL or USDC to another wallet</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSend} className="space-y-4">
+                  {/* Token Selector */}
+                  <div className="flex p-1 bg-muted rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setTokenType('SOL')}
+                      className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all ${tokenType === 'SOL'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                      SOL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTokenType('USDC')}
+                      className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${tokenType === 'USDC'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                      USDC
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-500/20 text-green-500 font-bold">
+                        GASLESS
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Recipient */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Recipient Address</label>
+                    <div className="relative">
+                      <Input
+                        value={recipientAddress}
+                        onChange={(e) => setRecipientAddress(e.target.value)}
+                        placeholder="Enter Solana wallet address"
+                        className="pr-10 font-mono text-sm"
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowQRScanner(true)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                        title="Scan QR Code"
+                      >
+                        <QrCode className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-foreground">Amount ({tokenType})</label>
+                      <span className="text-xs text-muted-foreground">
+                        Available: {tokenType === 'SOL' ? (solBalance || 0).toFixed(4) : usdcBalance.toFixed(2)} {tokenType}
+                      </span>
+                    </div>
                     <Input
-                      id="recipient"
-                      value={recipientAddress}
-                      onChange={(e) => setRecipientAddress(e.target.value)}
-                      placeholder="Enter Solana wallet address or scan QR code"
-                      className="font-mono text-sm pr-10"
+                      type="number"
+                      step={tokenType === 'SOL' ? '0.001' : '0.01'}
+                      min="0"
+                      value={sendAmount}
+                      onChange={(e) => setSendAmount(e.target.value)}
+                      placeholder={tokenType === 'SOL' ? '0.1' : '10.00'}
                       required
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowQRScanner(true)}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-muted"
-                      title="Scan QR Code"
-                      aria-label="Scan QR Code"
-                    >
-                      <QrCode className="h-4 w-4 text-muted-foreground" />
-                    </Button>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="amount" className="text-sm font-medium text-foreground">
-                    Amount (SOL)
-                  </label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    value={sendAmount}
-                    onChange={(e) => setSendAmount(e.target.value)}
-                    placeholder="0.00000000"
-                    required
-                  />
-                  {balance !== null && (
+                  {/* Fee Info */}
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border">
                     <p className="text-xs text-muted-foreground">
-                      Available: {balance.toFixed(4)} SOL
+                      {tokenType === 'SOL'
+                        ? '⚡ Transaction fee: ~0.000005 SOL (wallet-paid)'
+                        : '✨ Transaction fee: Sponsored by Paymaster (Gasless)'}
                     </p>
-                  )}
-                </div>
-
-                {error && (
-                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 sm:p-4">
-                    <p className="text-xs sm:text-sm text-destructive break-words whitespace-pre-line">{error}</p>
                   </div>
-                )}
 
-                {errorInfo && (
-                  <ErrorRecovery
-                    errorInfo={errorInfo}
-                    show={errorInfo.recoverable === true && txStatus === 'error'}
-                    onRecoverySuccess={() => {
-                      setError(null);
-                      setErrorInfo(null);
-                    }}
-                    onRetry={async () => {
-                      // Retry the transaction
-                      const recipientPubkey = new PublicKey(recipientAddress);
-                      const amountLamports = parseFloat(sendAmount) * LAMPORTS_PER_SOL;
-                      const instruction = SystemProgram.transfer({
-                        fromPubkey: smartWalletPubkey!,
-                        toPubkey: recipientPubkey,
-                        lamports: amountLamports,
-                      });
-                      const signature = await signTransaction({
-                        instructions: [instruction],
-                        onError: (error) => {
-                          const parsedError = parseError(error);
-                          setErrorInfo(parsedError);
-                          setError(parsedError.userFriendly || parsedError.message);
-                        },
-                      });
-                      setTxSignature(signature);
-                      setTxStatus('confirming');
-                      const connection = getConnection();
-                      await connection.confirmTransaction(signature, 'confirmed');
-                      setTxStatus('success');
-                      dispatchWalletEvent(WALLET_EVENTS.TRANSACTION_COMPLETED, {
-                        signature,
-                        type: 'transfer',
-                      });
-                      dispatchWalletEvent(WALLET_EVENTS.BALANCE_UPDATED);
-                    }}
-                    onDismiss={() => {
-                      setErrorInfo(null);
-                    }}
-                  />
-                )}
-
-                {txStatus === 'success' && txSignature && (
-                  <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3 sm:p-4">
-                    <p className="mb-2 text-xs sm:text-sm font-medium text-green-400">Transaction Successful!</p>
-                    <a
-                      href={explorerUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-400 hover:underline break-all"
-                    >
-                      View on Explorer
-                    </a>
-                  </div>
-                )}
-
-                <Button
-                  type="submit"
-                  disabled={txStatus !== 'idle' && txStatus !== 'error'}
-                  variant="gradient"
-                  className="w-full"
-                  size="lg"
-                >
-                  {txStatus === 'signing' && (
-                    <>
-                      <LoadingSpinner size="sm" color="white" />
-                      Signing...
-                    </>
-                  )}
-                  {txStatus === 'confirming' && (
-                    <>
-                      <LoadingSpinner size="sm" color="white" />
-                      Confirming...
-                    </>
-                  )}
-                  {txStatus === 'success' && (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Success!
-                    </>
-                  )}
-                  {(txStatus === 'idle' || txStatus === 'error') && (
-                    <>
-                      <Send className="h-4 w-4" />
-                      Send Transaction
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="receive" className="mt-4 sm:mt-6">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-base sm:text-lg text-foreground">Receive SOL</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Share this address to receive SOL</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
-              {/* QR Code */}
-              <div className="flex justify-center">
-                <div className="rounded-lg bg-white p-3 sm:p-4 shadow-md max-w-full">
-                  {walletAddress ? (
-                    <QRCodeSVG
-                      value={walletAddress}
-                      size={qrSize}
-                      level="H"
-                      includeMargin={false}
-                      fgColor="#000000"
-                      bgColor="#ffffff"
-                      className="max-w-full h-auto"
-                    />
-                  ) : (
-                    <div className="flex h-[200px] w-[200px] sm:h-[232px] sm:w-[232px] items-center justify-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  {/* Error */}
+                  {error && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                      <p className="text-sm text-destructive">{error}</p>
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* Wallet Address */}
-              <div className="space-y-2">
-                <label className="text-xs sm:text-sm font-medium text-foreground">Your Wallet Address</label>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    value={walletAddress} 
-                    readOnly 
-                    className="font-mono text-xs sm:text-sm px-3 sm:px-4 py-2.5 sm:py-3" 
-                  />
+                  {/* Success */}
+                  {txStatus === 'success' && txSignature && (
+                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                      <p className="text-sm font-medium text-green-500 mb-1">Transaction Successful!</p>
+                      <a
+                        href={getTransactionExplorerUrl(txSignature)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1"
+                      >
+                        View on Explorer <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
                   <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyAddress(walletAddress)}
-                    className="shrink-0 h-10 w-10 sm:h-11 sm:w-11"
+                    type="submit"
+                    disabled={txStatus !== 'idle' && txStatus !== 'error'}
+                    variant="gradient"
+                    className="w-full"
+                    size="lg"
                   >
-                    {copied ? (
-                      <Check className="h-4 w-4 text-green-400" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
+                    {txStatus === 'signing' && <><LoadingSpinner size="sm" color="white" /> Signing...</>}
+                    {txStatus === 'confirming' && <><LoadingSpinner size="sm" color="white" /> Confirming...</>}
+                    {txStatus === 'success' && <><Check className="h-4 w-4" /> Success!</>}
+                    {(txStatus === 'idle' || txStatus === 'error') && <><Send className="h-4 w-4" /> Send {tokenType}</>}
                   </Button>
-                </div>
-                {copied && (
-                  <p className="text-xs text-green-400">Address copied to clipboard!</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="verify" className="mt-4 sm:mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Shield className="h-5 w-5" />
-                Verify Wallet Ownership
-              </CardTitle>
-              <CardDescription>
-                Sign a message with your passkey to verify wallet ownership. No transaction fees required.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSignMessage} className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="message" className="text-sm font-medium text-foreground">
-                    Message to Sign
-                  </label>
-                  <Input
-                    id="message"
-                    value={messageToSign}
-                    onChange={(e) => setMessageToSign(e.target.value)}
-                    placeholder="Enter a message to sign (e.g., 'Hello LazorKit')"
-                    className="font-mono text-sm"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    This message will be signed with your passkey to prove wallet ownership.
-                  </p>
-                </div>
-
-                {signError && (
-                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 sm:p-4">
-                    <p className="text-xs sm:text-sm text-destructive break-words">{signError}</p>
-                  </div>
-                )}
-
-                {signStatus === 'success' && signature && (
-                  <div className="space-y-3 rounded-lg border border-green-500/50 bg-green-500/10 p-4">
-                    <div className="flex items-center gap-2">
-                      <Check className="h-5 w-5 text-green-400" />
-                      <p className="text-sm font-medium text-green-400">Message Signed Successfully!</p>
+          {/* RECEIVE TAB */}
+          <TabsContent value="receive">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* SOL Receive Card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
+                      alt="SOL"
+                      className="w-8 h-8"
+                    />
+                    <div>
+                      <CardTitle className="text-foreground">Receive SOL</CardTitle>
+                      <CardDescription>Native Solana Token</CardDescription>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Signature:</label>
-                      <div className="rounded-md bg-background/50 p-2">
-                        <p className="break-all font-mono text-xs text-foreground">{signature}</p>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-center">
+                    <div className="p-3 bg-white rounded-lg shadow">
+                      {walletAddress ? (
+                        <QRCodeSVG value={walletAddress} size={160} level="H" />
+                      ) : (
+                        <div className="w-40 h-40 flex items-center justify-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">Wallet Address</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={walletAddress}
+                        readOnly
+                        className="font-mono text-xs flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyAddress(walletAddress)}
+                        className="flex-shrink-0"
+                      >
+                        {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <a
+                    href={FAUCET_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Coins className="h-4 w-4" />
+                    Get Devnet SOL (Faucet)
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </CardContent>
+              </Card>
+
+              {/* USDC Receive Card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img src={TOKENS.USDC.logoUrl} alt="USDC" className="w-8 h-8" />
+                      <div>
+                        <CardTitle className="text-foreground">Receive USDC</CardTitle>
+                        <CardDescription>SPL Token (Devnet)</CardDescription>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      This signature proves you own the wallet without sending any transaction.
-                    </p>
+                    {/* Account status indicator */}
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${usdcAtaExists
+                        ? 'bg-green-500/20 text-green-500'
+                        : 'bg-yellow-500/20 text-yellow-500'
+                      }`}>
+                      {usdcAtaExists ? '✓ Ready' : '⚠ Setup Required'}
+                    </div>
                   </div>
-                )}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Show Create Account button if ATA doesn't exist */}
+                  {!usdcAtaExists && (
+                    <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 space-y-3">
+                      <p className="text-sm text-yellow-500 font-medium">
+                        ⚠️ Token Account Required
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Before you can receive USDC, you need to create a token account.
+                        This is a one-time setup that requires a small transaction.
+                      </p>
+                      <Button
+                        onClick={createUsdcAta}
+                        disabled={creatingAta}
+                        variant="gradient"
+                        className="w-full"
+                      >
+                        {creatingAta ? (
+                          <>
+                            <LoadingSpinner size="sm" color="white" />
+                            <span className="ml-2">Creating Account...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Coins className="h-4 w-4 mr-2" />
+                            Create USDC Account
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
 
-                <Button
-                  type="submit"
-                  disabled={signStatus !== 'idle' && signStatus !== 'error'}
-                  variant="gradient"
-                  className="w-full"
-                  size="lg"
-                >
-                  {signStatus === 'signing' && (
-                    <>
-                      <LoadingSpinner size="sm" color="white" />
-                      Signing with Passkey...
-                    </>
+                  {/* QR Code and Address (always show, but indicate if not ready) */}
+                  <div className="flex justify-center">
+                    <div className={`p-3 bg-white rounded-lg shadow ${!usdcAtaExists ? 'opacity-50' : ''}`}>
+                      {usdcAta ? (
+                        <QRCodeSVG value={usdcAta} size={160} level="H" />
+                      ) : (
+                        <div className="w-40 h-40 flex items-center justify-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">USDC Token Account</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={usdcAta}
+                        readOnly
+                        className="font-mono text-xs flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyUsdcAta(usdcAta)}
+                        className="flex-shrink-0"
+                      >
+                        {copiedUsdc ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Faucet link - only enabled when account exists */}
+                  <a
+                    href="https://spl-token-faucet.com/?token-name=USDC-Devnet"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${usdcAtaExists
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-muted text-muted-foreground cursor-not-allowed pointer-events-none'
+                      }`}
+                  >
+                    <Coins className="h-4 w-4" />
+                    Get Devnet USDC (Faucet)
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+
+                  {usdcAtaExists && (
+                    <p className="text-xs text-center text-green-500">
+                      ✓ Your account is ready to receive USDC!
+                    </p>
                   )}
-                  {signStatus === 'success' && (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Signed!
-                    </>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* VERIFY TAB */}
+          <TabsContent value="verify">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <Shield className="h-5 w-5" />
+                  Verify Wallet Ownership
+                </CardTitle>
+                <CardDescription>
+                  Sign a message with your passkey to prove wallet ownership. No transaction fees.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSignMessage} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Message to Sign</label>
+                    <Input
+                      value={messageToSign}
+                      onChange={(e) => setMessageToSign(e.target.value)}
+                      placeholder="Enter a message (e.g., Hello LazorKit)"
+                      className="font-mono"
+                      required
+                    />
+                  </div>
+
+                  {signError && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                      <p className="text-sm text-destructive">{signError}</p>
+                    </div>
                   )}
-                  {(signStatus === 'idle' || signStatus === 'error') && (
-                    <>
-                      <MessageSquare className="h-4 w-4" />
-                      Sign Message
-                    </>
+
+                  {signStatus === 'success' && signature && (
+                    <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30 space-y-2">
+                      <p className="text-sm font-medium text-green-500 flex items-center gap-2">
+                        <Check className="h-4 w-4" /> Message Signed Successfully!
+                      </p>
+                      <div className="bg-background/50 p-2 rounded">
+                        <p className="font-mono text-xs text-foreground break-all">{signature}</p>
+                      </div>
+                    </div>
                   )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+                  <Button
+                    type="submit"
+                    disabled={signStatus !== 'idle' && signStatus !== 'error'}
+                    variant="gradient"
+                    className="w-full"
+                    size="lg"
+                  >
+                    {signStatus === 'signing' && <><LoadingSpinner size="sm" color="white" /> Signing...</>}
+                    {signStatus === 'success' && <><Check className="h-4 w-4" /> Signed!</>}
+                    {(signStatus === 'idle' || signStatus === 'error') && <><Shield className="h-4 w-4" /> Sign Message</>}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {/* QR Scanner Modal */}
       <QRScanner
@@ -596,6 +720,6 @@ export default function WalletPage() {
         onClose={() => setShowQRScanner(false)}
         onScan={handleScan}
       />
-    </AppLayout>
+    </AppLayout >
   );
 }

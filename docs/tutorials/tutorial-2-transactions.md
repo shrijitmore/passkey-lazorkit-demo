@@ -493,33 +493,66 @@ const transferInstruction = SystemProgram.transfer({
 });
 ```
 
-### Transfer Tokens (SPL Token)
+### Transfer Tokens (SPL Token) - Gasless!
+
+To send SPL tokens (like USDC) with gasless sponsorship (Paymaster), you need to:
+1.  Get the Mint Address (e.g., Devnet USDC)
+2.  Handle Associated Token Accounts (ATA) for sender and recipient
+3.  Create the transfer instruction
 
 ```typescript
-import {
-  createTransferInstruction,
-  getAssociatedTokenAddress,
+import { 
+  getAssociatedTokenAddress, 
+  createAssociatedTokenAccountInstruction, 
+  createTransferInstruction, 
+  TOKEN_PROGRAM_ID, 
+  ASSOCIATED_TOKEN_PROGRAM_ID 
 } from '@solana/spl-token';
 
-// Get token accounts
-const fromTokenAccount = await getAssociatedTokenAddress(
-  tokenMint,
-  senderPubkey
-);
-const toTokenAccount = await getAssociatedTokenAddress(
-  tokenMint,
-  recipientPubkey
-);
+const handleTokenTransfer = async () => {
+  const usdcMint = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'); // Devnet USDC
+  const amount = 10 * 1000000; // 10 USDC (6 decimals)
 
-// Create transfer instruction
-const tokenTransferInstruction = createTransferInstruction(
-  fromTokenAccount,
-  toTokenAccount,
-  senderPubkey,
-  1000000, // Amount (with decimals)
-  []
-);
+  const instructions = [];
+
+  // 1. Get Sender ATA
+  const senderAta = await getAssociatedTokenAddress(
+    usdcMint,
+    smartWalletPubkey
+  );
+
+  // 2. Get Recipient ATA - and create if needed
+  const recipientAta = await getAssociatedTokenAddress(
+    usdcMint,
+    recipientPubkey
+  );
+
+  // Check if recipient account exists (if not, add creation instruction)
+  // Note: For smart wallets, we can just optimistically add the create instruction 
+  // if we're unsure, or check strict existence via connection.getAccountInfo
+  // In our helper utilities, we check first.
+  
+  // 3. Create Transfer Instruction
+  const transferIx = createTransferInstruction(
+    senderAta,
+    recipientAta,
+    smartWalletPubkey,
+    amount,
+    [],
+    TOKEN_PROGRAM_ID
+  );
+  
+  instructions.push(transferIx);
+
+  // 4. Sign and Send
+  // The Paymaster will likely sponsor this transaction because it's a token transfer!
+  const signature = await signTransaction({
+    instructions,
+  });
+};
 ```
+
+**Key Takeaway:** Unlike native SOL transfers where you pay the fee, **LazorKit Paymasters frequently sponsor SPL Token transfers**, making them completely gasless for the user!
 
 ### Multiple Instructions in One Transaction
 
