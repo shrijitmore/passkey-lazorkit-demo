@@ -1,5 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
 import { PublicKey } from '@solana/web3.js';
+import {
+    TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID
+} from '@solana/spl-token';
 import { getConnection } from '../rpc/connection';
 
 export interface TokenInfo {
@@ -25,20 +29,31 @@ const KNOWN_TOKENS: Record<string, { symbol: string; name: string; logoUrl: stri
         name: 'Circle USDC (Devnet)',
         logoUrl: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
     },
-    // You can add more known tokens here
 };
 
 /**
  * Hook to fetch ALL SPL token balances for a wallet.
- * This is more robust than looking for a specific mint.
  */
-export function useAllTokenBalances(ownerPublicKey: PublicKey | null) {
+export function useAllTokenBalances(ownerPublicKey: PublicKey | null | string) {
     const [tokens, setTokens] = useState<TokenInfo[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const lastFetchTime = useRef<number>(0);
 
     const fetchAllTokens = useCallback(async () => {
         if (!ownerPublicKey) {
+            setTokens([]);
+            return;
+        }
+
+        let owner: PublicKey;
+        try {
+            if (typeof ownerPublicKey === 'string' && !ownerPublicKey.trim()) {
+                setTokens([]);
+                return;
+            }
+            owner = typeof ownerPublicKey === 'string' ? new PublicKey(ownerPublicKey) : ownerPublicKey;
+        } catch (e) {
+            console.error('useAllTokenBalances: Invalid owner public key', ownerPublicKey);
             setTokens([]);
             return;
         }
@@ -55,11 +70,13 @@ export function useAllTokenBalances(ownerPublicKey: PublicKey | null) {
         try {
             const connection = getConnection();
 
-            // Fetch ALL token accounts for this wallet
-            const { value: accounts } = await connection.getParsedTokenAccountsByOwner(
-                ownerPublicKey,
-                { programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA') }
-            );
+            // Fetch accounts from both programs in parallel
+            const [standardRes, token2022Res] = await Promise.all([
+                connection.getParsedTokenAccountsByOwner(owner, { programId: TOKEN_PROGRAM_ID }),
+                connection.getParsedTokenAccountsByOwner(owner, { programId: TOKEN_2022_PROGRAM_ID })
+            ]);
+
+            const accounts = [...standardRes.value, ...token2022Res.value];
 
             const tokenList: TokenInfo[] = accounts
                 .map((account) => {
@@ -80,7 +97,7 @@ export function useAllTokenBalances(ownerPublicKey: PublicKey | null) {
                         logoUrl: known?.logoUrl,
                     };
                 })
-                .filter((token) => token.balance > 0); // Only show tokens with balance
+                .filter((token) => token.balance > 0);
 
             setTokens(tokenList);
         } catch (err) {

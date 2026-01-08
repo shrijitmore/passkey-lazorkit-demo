@@ -32,23 +32,23 @@ interface UseWebAuthnConnectionReturn {
    * Connect wallet with automatic environment validation
    */
   connect: () => Promise<void>;
-  
+
   /**
    * Whether connection is in progress
    */
   isConnecting: boolean;
-  
+
   /**
    * Connection error message (if any)
    */
   error: string | null;
-  
+
   /**
    * Validate WebAuthn environment without connecting
    * Useful for showing validation errors before attempting connection
    */
   validateEnvironment: () => WebAuthnValidationResult;
-  
+
   /**
    * Clear the current error
    */
@@ -89,8 +89,8 @@ export function useWebAuthnConnection(): UseWebAuthnConnectionReturn {
         return;
       }
 
-      // Attempt connection
-      await connectWallet();
+      // Attempt connection with paymaster fee mode to ensure routing via LazorKit Portal
+      await connectWallet({ feeMode: 'paymaster' });
     } catch (err: unknown) {
       // Parse connection-specific errors
       const errorInfo = parseConnectionError(err);

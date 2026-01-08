@@ -272,6 +272,36 @@ const signature = await signAndSendTransaction({
 
 For detailed examples, see the [tutorials](./docs/tutorials/) or check the code in `app/components/wallet/WalletPanelEnhanced.tsx`.
 
+### 💰 Receiving USDC/SPL Tokens
+
+**Important:** Before you can receive SPL tokens from external wallets, you must first **initialize your token account**.
+
+#### Understanding Devnet USDC Tokens
+
+There are **multiple USDC tokens on Devnet** - this is a common source of confusion:
+
+| Token | Mint Address | Source |
+|-------|-------------|--------|
+| **USDC-Dev** (default) | `Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr` | [spl-token-faucet.com](https://spl-token-faucet.com) |
+| Circle USDC | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` | [Circle Faucet](https://faucet.circle.com) |
+
+This demo uses **USDC-Dev** by default, which is compatible with Phantom and most Devnet wallets.
+
+#### Why does Phantom show "Failed to generate a valid transaction"?
+
+Solana requires an **Associated Token Account (ATA)** to exist before receiving SPL tokens. Your LazorKit smart wallet is a PDA (Program Derived Address), and external wallets cannot create the ATA for you.
+
+#### How to receive USDC:
+
+1. Navigate to **Wallet → Receive tab**
+2. Look for the **"Cannot Receive USDC Yet!"** warning banner
+3. Click **"Initialize USDC Account"** (requires ~0.002 SOL for rent)
+4. Wait for confirmation
+5. Get USDC-Dev from the [SPL Token Faucet](https://spl-token-faucet.com/?token-name=USDC-Dev)
+6. Now you can receive USDC from any wallet! ✅
+
+> **💡 Tip:** Get Devnet SOL from the [Solana Faucet](https://faucet.solana.com) first if you need SOL for the rent cost.
+
 ### ⚠️ Known Issue: Paymaster Transaction Size Error
 
 If you encounter this error:

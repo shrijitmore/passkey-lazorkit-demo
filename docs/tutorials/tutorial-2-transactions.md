@@ -496,9 +496,11 @@ const transferInstruction = SystemProgram.transfer({
 ### Transfer Tokens (SPL Token) - Gasless!
 
 To send SPL tokens (like USDC) with gasless sponsorship (Paymaster), you need to:
-1.  Get the Mint Address (e.g., Devnet USDC)
+1.  Get the Mint Address (e.g., Devnet USDC-Dev)
 2.  Handle Associated Token Accounts (ATA) for sender and recipient
 3.  Create the transfer instruction
+
+> **Note:** There are multiple USDC tokens on Devnet. This example uses **USDC-Dev** (`Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr`) which is compatible with Phantom and spl-token-faucet.com.
 
 ```typescript
 import { 
@@ -510,7 +512,8 @@ import {
 } from '@solana/spl-token';
 
 const handleTokenTransfer = async () => {
-  const usdcMint = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'); // Devnet USDC
+  // USDC-Dev mint (compatible with Phantom and spl-token-faucet.com)
+  const usdcMint = new PublicKey('Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
   const amount = 10 * 1000000; // 10 USDC (6 decimals)
 
   const instructions = [];

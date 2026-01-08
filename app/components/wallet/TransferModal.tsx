@@ -71,8 +71,8 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
   const [errorInfo, setErrorInfo] = useState<ReturnType<typeof parseError> | null>(null);
 
   // Token balance state
-  const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
-  const [isLoadingUsdc, setIsLoadingUsdc] = useState(false);
+  const [tokenBalance, setTokenBalance] = useState<number | null>(null);
+  const [isLoadingToken, setIsLoadingToken] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -83,37 +83,45 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       setRecipient('');
       setAmount('');
       setTokenType('SOL');
-      fetchUsdcBalance();
+      if (tokenType !== 'SOL') fetchTokenBalance();
     }
   }, [isOpen]);
 
-  // Fetch USDC Balance
-  const fetchUsdcBalance = useCallback(async () => {
-    if (!smartWalletPubkey) return;
-    setIsLoadingUsdc(true);
+  // Fetch Token Balance
+  const fetchTokenBalance = useCallback(async () => {
+    if (!smartWalletPubkey || tokenType === 'SOL') return;
+    setIsLoadingToken(true);
     try {
       const connection = getConnection();
-      const usdcMint = new PublicKey(TOKENS.USDC.mint);
+      const mint = new PublicKey(TOKENS[tokenType].mint);
 
       const { value: accounts } = await connection.getParsedTokenAccountsByOwner(
         smartWalletPubkey,
-        { mint: usdcMint }
+        { mint }
       );
 
       if (accounts.length > 0) {
         const balance = accounts[0].account.data.parsed.info.tokenAmount.uiAmount || 0;
-        setUsdcBalance(balance);
+        setTokenBalance(balance);
       } else {
-        setUsdcBalance(0);
+        setTokenBalance(0);
       }
     } catch (err) {
-      console.error('Failed to fetch USDC balance:', err);
-      // Don't set error state here, just show 0 balance
-      setUsdcBalance(0);
+      console.error(`Failed to fetch ${tokenType} balance:`, err);
+      setTokenBalance(0);
     } finally {
-      setIsLoadingUsdc(false);
+      setIsLoadingToken(false);
     }
-  }, [smartWalletPubkey]);
+  }, [smartWalletPubkey, tokenType]);
+
+  // Refetch balance when token type changes
+  useEffect(() => {
+    if (tokenType !== 'SOL') {
+      fetchTokenBalance();
+    } else {
+      setTokenBalance(null);
+    }
+  }, [tokenType, fetchTokenBalance]);
 
   const handleTransfer = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,36 +167,39 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           })
         );
       } else {
-        // USDC Transfer (SPL Token)
-        if (usdcBalance !== null && amountVal > usdcBalance) {
-          throw new Error(`Insufficient USDC balance. Available: ${usdcBalance} USDC`);
+        // Token Transfer (SPL Token) - USDC
+        if (tokenBalance !== null && amountVal > tokenBalance) {
+          throw new Error(`Insufficient ${tokenType} balance. Available: ${tokenBalance} ${tokenType}`);
         }
 
-        const usdcMint = new PublicKey(TOKENS.USDC.mint);
+        const mint = new PublicKey(TOKENS[tokenType].mint);
 
         // 1. Get Sender ATA
-        const { address: senderAta, instruction: createSenderAtaIx } =
+        const { address: senderAta, tokenProgramId } =
           await getOrCreateAssociatedTokenAccountInstruction(
             connection,
-            usdcMint,
+            mint,
             smartWalletPubkey,
-            smartWalletPubkey // payer
+            smartWalletPubkey, // payer
+            true // allowOwnerOffCurve: required for PDA-based smart wallets
           );
-
-        // Sender should ideally already have an account if they have balance, 
-        // but safe to include logic or handle accordingly.
-        // Lazy: We assume if balance > 0, account exists.
 
         // 2. Get Recipient ATA - and create if needed!
         const { address: recipientAta, instruction: createRecipientAtaIx } =
           await getOrCreateAssociatedTokenAccountInstruction(
             connection,
-            usdcMint,
+            mint,
             recipientPubkey,
-            smartWalletPubkey // payer: Sender pays for ATA creation (rent)
+            smartWalletPubkey, // payer: Sender pays for ATA creation (rent)
+            true // allowOwnerOffCurve: required for PDA-based smart wallets
           );
 
         if (createRecipientAtaIx) {
+          // PROACTIVE RENT CHECK: If we need to create an ATA, ensure sender has enough SOL
+          const RENT_EXEMPT_MIN = 0.0021; // Standard ATA rent is approx 0.00204 SOL
+          if (balance !== null && balance < RENT_EXEMPT_MIN) {
+            throw new Error(`Recipient needs a USDC account, but you have insufficient SOL for the account creation rent. You need at least ${RENT_EXEMPT_MIN} SOL. Use the Faucet to get some!`);
+          }
           instructions.push(createRecipientAtaIx);
         }
 
@@ -199,7 +210,8 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
             recipientAta,
             smartWalletPubkey,
             amountVal,
-            TOKENS.USDC.decimals
+            TOKENS[tokenType].decimals,
+            tokenProgramId
           )
         );
       }
@@ -240,7 +252,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
       setErrorInfo(parsedError);
       setError(parsedError.userFriendly || parsedError.message || 'Transfer failed. Check address and balance.');
     }
-  }, [smartWalletPubkey, balance, usdcBalance, signTransaction, onSuccess, onClose, tokenType, recipient, amount]);
+  }, [smartWalletPubkey, balance, tokenBalance, signTransaction, onSuccess, onClose, tokenType, recipient, amount]);
 
   if (!isOpen) return null;
 
@@ -264,21 +276,21 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
           <button
             onClick={() => setTokenType('SOL')}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${tokenType === 'SOL'
-                ? 'bg-purple-600 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-purple-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
           >
             SOL
           </button>
           <button
             onClick={() => setTokenType('USDC')}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${tokenType === 'USDC'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1 ${tokenType === 'USDC'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
           >
             USDC
-            <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 font-bold border border-green-500/30">
+            <span className="px-1 py-0.5 rounded text-[8px] bg-green-500/20 text-green-400 font-bold border border-green-500/30">
               GASLESS
             </span>
           </button>
@@ -310,7 +322,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
                   <span>Available: {balance !== null ? balance.toFixed(4) : '...'} SOL</span>
                 ) : (
                   <span className="flex items-center gap-1">
-                    Available: {isLoadingUsdc ? <LoadingSpinner size="sm" /> : usdcBalance ?? '0'} USDC
+                    Available: {isLoadingToken ? <LoadingSpinner size="sm" /> : tokenBalance ?? '0'} {tokenType}
                   </span>
                 )}
               </div>
@@ -322,7 +334,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
               max={
                 tokenType === 'SOL'
                   ? (balance ?? undefined)
-                  : (usdcBalance ?? undefined)
+                  : (tokenBalance ?? undefined)
               }
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -333,10 +345,10 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
             />
           </div>
 
-          {/* USDC Faucet Hint */}
-          {tokenType === 'USDC' && (usdcBalance === 0 || usdcBalance === null) && !isLoadingUsdc && (
+          {/* Token Faucet Hint */}
+          {(tokenType === 'USDC') && (tokenBalance === 0 || tokenBalance === null) && !isLoadingToken && (
             <div className="text-xs text-center p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-300">
-              Need Devnet USDC? <a href="https://spl-token-faucet.com/?token-name=USDC-Devnet" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">Get some here</a> to test gasless transfers!
+              Need Devnet {tokenType}? <a href="https://spl-token-faucet.com/?token-name=USDC-Devnet" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">Get some here</a> to test gasless transfers!
             </div>
           )}
 
@@ -400,8 +412,8 @@ export default function TransferModal({ isOpen, onClose, onSuccess }: TransferMo
             type="submit"
             disabled={txStatus !== 'idle' && txStatus !== 'error'}
             className={`w-full px-4 sm:px-6 py-3 text-sm sm:text-base text-white rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed btn-glow ${tokenType === 'SOL'
-                ? 'gradient-primary'
-                : 'bg-gradient-to-r from-blue-600 to-cyan-500'
+              ? 'gradient-primary'
+              : 'bg-gradient-to-r from-blue-600 to-cyan-500'
               }`}
             data-testid="send-transfer-btn"
           >

@@ -44,11 +44,11 @@ interface SignTransactionOptions {
 }
 
 const CREDENTIAL_ERROR_INDICATORS = [
-  'custom program error: 0x2',
-  'Transaction simulation failed',
   'signature',
   'credential',
   'passkey',
+  'unauthorized',
+  'identity',
 ];
 
 const DISCONNECT_DELAY = 500;
@@ -99,14 +99,21 @@ export function useTransactionSigning() {
       // Retry loop for recoverable errors
       while (retryCount <= MAX_RETRY_ATTEMPTS) {
         try {
-          return await signAndSendTransaction({ instructions });
+          console.log(`[useTransactionSigning] Attempting transaction sign/send (attempt ${retryCount + 1})...`);
+
+          const signature = await signAndSendTransaction({ instructions });
+
+          console.log('[useTransactionSigning] Transaction successful! Signature:', signature);
+          return signature;
         } catch (signError: unknown) {
           lastError = signError;
-          
+          const errorMessage = signError instanceof Error ? signError.message : String(signError);
+          console.error('[useTransactionSigning] Transaction failed with error:', errorMessage);
+
           // Check if error is due to credential inconsistency
           const isCredentialIssue = isCredentialError(signError);
           const isTransactionSizeIssue = isTransactionSizeError(signError) || detectPasskeyCacheIssue(signError);
-          
+
           // If it's a recoverable error and we haven't exceeded retry limit
           if ((isCredentialIssue || isTransactionSizeIssue) && retryCount < MAX_RETRY_ATTEMPTS) {
             const context = '[useTransactionSigning]';
@@ -114,6 +121,9 @@ export function useTransactionSigning() {
             console.warn(
               `${context} ${errorType} issue detected. Attempting recovery (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS})...`
             );
+
+            // Wait a bit to ensure UI doesn't flicker too much
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             // Clear all caches before disconnect/reconnect
             const walletAddress = smartWalletPubkey?.toString();
@@ -132,12 +142,10 @@ export function useTransactionSigning() {
               if (recoveryResult.success) {
                 // Wait with exponential backoff before retry
                 const delay = RETRY_DELAY * Math.pow(2, retryCount);
+                console.log(`${context} Recovery successful. Waiting ${delay}ms before retrying...`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
 
                 // Retry transaction with fresh credentials
-                console.log(
-                  `${context} Retrying transaction after recovery (attempt ${retryCount + 1})...`
-                );
                 retryCount++;
                 continue; // Retry the transaction
               } else {
@@ -145,15 +153,16 @@ export function useTransactionSigning() {
                 throw new Error(recoveryResult.message);
               }
             } catch (reconnectError) {
+              console.error(`${context} Recovery failed:`, reconnectError);
               // If recovery fails and we've exhausted retries, throw error
               if (retryCount >= MAX_RETRY_ATTEMPTS) {
                 const errorMessage = isTransactionSizeIssue
                   ? 'Transaction size error: Passkey cache issue detected. Please disconnect and reconnect your wallet, then try again.\n\n' +
-                    'This error occurs when passkey credentials are cached inconsistently, causing transaction size to exceed Solana\'s limit.\n\n' +
-                    'Solution: Click disconnect, then reconnect your wallet to refresh credentials.'
+                  'This error occurs when passkey credentials are cached inconsistently, causing transaction size to exceed Solana\'s limit.\n\n' +
+                  'Solution: Click disconnect, then reconnect your wallet to refresh credentials.'
                   : 'Passkey credential issue detected. Please disconnect and reconnect your wallet, then try again.\n\n' +
-                    'This error occurs when passkey credentials are stored inconsistently, causing signature verification to fail.\n\n' +
-                    'Solution: Click disconnect, then reconnect your wallet to refresh credentials.';
+                  'This error occurs when passkey credentials are stored inconsistently, causing signature verification to fail.\n\n' +
+                  'Solution: Click disconnect, then reconnect your wallet to refresh credentials.';
 
                 const error = new Error(errorMessage);
                 onError?.(error);

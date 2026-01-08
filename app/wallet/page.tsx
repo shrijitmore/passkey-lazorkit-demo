@@ -64,34 +64,31 @@ export default function WalletPage() {
 
   const walletAddress = useMemo(() => smartWalletPubkey?.toString() || '', [smartWalletPubkey]);
   const { copy: copyAddress, copied } = useCopyToClipboard();
-  const { copy: copyUsdcAta, copied: copiedUsdc } = useCopyToClipboard();
+  const { copy: copyAta, copied: copiedAta } = useCopyToClipboard();
 
-  // Fetch USDC ATA address and check if it exists
+  const selectedAta = usdcAta;
+  const selectedAtaExists = usdcAtaExists;
+
+  // Fetch Token ATA addresses and check if they exist
   useEffect(() => {
-    const fetchAta = async () => {
+    const fetchAtas = async () => {
       if (smartWalletPubkey) {
+        const connection = getConnection();
+
+        // Fetch USDC
         try {
-          const connection = getConnection();
-          const usdcMint = new PublicKey(TOKENS.USDC.mint);
-          // allowOwnerOffCurve: true is required because LazorKit smart wallets are PDAs
+          const usdcMint = new PublicKey(TOKENS.USDC_DEV.mint);
           const ata = await getAssociatedTokenAddress(usdcMint, smartWalletPubkey, true);
           setUsdcAta(ata.toString());
-
-          // Check if ATA actually exists on-chain
-          try {
-            const accountInfo = await connection.getAccountInfo(ata);
-            setUsdcAtaExists(accountInfo !== null);
-          } catch {
-            setUsdcAtaExists(false);
-          }
+          const info = await connection.getAccountInfo(ata);
+          setUsdcAtaExists(info !== null);
         } catch (e) {
           console.error('Failed to get USDC ATA:', e);
-          setUsdcAta(smartWalletPubkey.toString());
           setUsdcAtaExists(false);
         }
       }
     };
-    fetchAta();
+    fetchAtas();
   }, [smartWalletPubkey]);
 
   // Fetch tokens on mount
@@ -102,8 +99,8 @@ export default function WalletPage() {
     }
   }, [smartWalletPubkey]);
 
-  // Helper to get USDC balance from tokens array
-  const usdcToken = tokens.find(t => t.symbol === 'USDC');
+  // Helper to get token balances
+  const usdcToken = tokens.find((t: any) => t.symbol === 'USDC');
   const usdcBalance = usdcToken?.balance || 0;
 
   const refreshAll = () => {
@@ -111,33 +108,37 @@ export default function WalletPage() {
     refreshTokens();
   };
 
-  // Create USDC ATA - THIS IS THE KEY MISSING PIECE!
+  // Create Token ATA
   // The ATA must exist on-chain before tokens can be received
-  const createUsdcAta = async () => {
+  const createTokenAta = async () => {
     if (!smartWalletPubkey) return;
 
     setCreatingAta(true);
     setError(null);
+    console.log(`[WalletPage] Attempting to create USDC account...`);
 
     try {
       const connection = getConnection();
-      const usdcMint = new PublicKey(TOKENS.USDC.mint);
+      const mint = new PublicKey(TOKENS.USDC_DEV.mint);
 
       const { address, instruction } = await getOrCreateAssociatedTokenAccountInstruction(
         connection,
-        usdcMint,
+        mint,
         smartWalletPubkey,
-        smartWalletPubkey
+        smartWalletPubkey,
+        true // allowOwnerOffCurve: required for PDA-based smart wallets
       );
 
       if (!instruction) {
-        // ATA already exists
+        console.log(`[WalletPage] USDC account already exists at ${address.toString()}`);
         setUsdcAtaExists(true);
         setCreatingAta(false);
         return;
       }
 
+      console.log(`[WalletPage] Sending transaction to create USDC account...`);
       // Sign and send the transaction to create the ATA
+      // Note: If solBalance is 0, the Paymaster may sponsor this if configured!
       await signTransaction({
         instructions: [instruction],
         onError: (err) => {
@@ -146,15 +147,29 @@ export default function WalletPage() {
         },
       });
 
-      // Update state
+      console.log(`[WalletPage] USDC account created successfully!`);
       setUsdcAtaExists(true);
       setUsdcAta(address.toString());
 
       // Refresh tokens to pick up the new account
       setTimeout(() => refreshTokens(), 2000);
     } catch (err) {
+      console.error(`[WalletPage] Failed to create USDC account:`, err);
       const parsed = parseError(err);
-      setError(parsed.userFriendly || parsed.message || 'Failed to create token account');
+
+      // Special handling for common errors
+      if (parsed.message && (parsed.message.includes('0x0') || parsed.message.includes('already in use'))) {
+        console.log(`[WalletPage] Account for USDC already exists. Marking as exists.`);
+        setUsdcAtaExists(true);
+        return;
+      }
+
+      // If it's a balance error, provide a helpful tip about gasless/faucet
+      if (parsed.code === 'INSUFFICIENT_FUNDS' || (parsed.message && (parsed.message.includes('0x1') || parsed.message.includes('Insufficient SOL')))) {
+        setError('Insufficient SOL for account rent (~0.002 SOL). While transaction fees are covered by Paymaster, Solana requires a small amount of SOL for account storage rent. Please use the Faucet link below to get some SOL.');
+      } else {
+        setError(parsed.userFriendly || parsed.message || `Failed to create USDC account`);
+      }
     } finally {
       setCreatingAta(false);
     }
@@ -203,15 +218,22 @@ export default function WalletPage() {
         if (amountVal > usdcBalance) {
           throw new Error(`Insufficient USDC. Available: ${usdcBalance.toFixed(2)} USDC`);
         }
-        const usdcMint = new PublicKey(TOKENS.USDC.mint);
+        const usdcMint = new PublicKey(TOKENS.USDC_DEV.mint);
         const { address: senderAta } = await getOrCreateAssociatedTokenAccountInstruction(
           connection, usdcMint, smartWalletPubkey, smartWalletPubkey
         );
         const { address: recipientAta, instruction: createAtaIx } = await getOrCreateAssociatedTokenAccountInstruction(
           connection, usdcMint, recipientPubkey, smartWalletPubkey
         );
-        if (createAtaIx) instructions.push(createAtaIx);
-        instructions.push(createSPLTransferInstruction(senderAta, recipientAta, smartWalletPubkey, amountVal, TOKENS.USDC.decimals));
+        if (createAtaIx) {
+          // PROACTIVE RENT CHECK: If we need to create an ATA, ensure sender has enough SOL
+          const RENT_EXEMPT_MIN = 0.0021; // Standard ATA rent is approx 0.00204 SOL
+          if (solBalance !== null && solBalance < RENT_EXEMPT_MIN) {
+            throw new Error(`Recipient needs a USDC account, but you have insufficient SOL for the account creation rent. You need at least ${RENT_EXEMPT_MIN} SOL. Use the Faucet to get some!`);
+          }
+          instructions.push(createAtaIx);
+        }
+        instructions.push(createSPLTransferInstruction(senderAta, recipientAta, smartWalletPubkey, amountVal, TOKENS.USDC_DEV.decimals));
       }
 
       const sig = await signTransaction({
@@ -314,24 +336,29 @@ export default function WalletPage() {
 
         {/* Balance Overview */}
         <Card className="border-primary/20">
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-2 gap-4">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            {/* SOL ASSET */}
+            <div className="glass-dark rounded-xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img
-                  src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
-                  alt="SOL"
-                  className="w-8 h-8"
-                />
+                <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                  <img src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png" alt="SOL" className="h-6 w-6" />
+                </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">SOL Balance</p>
-                  <p className="text-lg font-bold text-foreground">{(solBalance || 0).toFixed(4)}</p>
+                  <p className="text-sm font-semibold text-foreground">Solana</p>
+                  <p className="text-xs text-muted-foreground font-mono">{(solBalance || 0).toFixed(4)} SOL</p>
                 </div>
               </div>
+            </div>
+
+            {/* USDC ASSET */}
+            <div className="glass-dark rounded-xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img src={TOKENS.USDC.logoUrl} alt="USDC" className="w-8 h-8" />
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                  <img src={TOKENS.USDC_DEV.logoUrl} alt="USDC-Dev" className="h-6 w-6" />
+                </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">USDC Balance</p>
-                  <p className="text-lg font-bold text-foreground">{usdcBalance.toFixed(2)}</p>
+                  <p className="text-sm font-semibold text-foreground">USD Coin</p>
+                  <p className="text-xs text-muted-foreground font-mono">{(usdcBalance || 0).toFixed(2)} USDC</p>
                 </div>
               </div>
             </div>
@@ -545,109 +572,153 @@ export default function WalletPage() {
                 </CardContent>
               </Card>
 
-              {/* USDC Receive Card */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img src={TOKENS.USDC.logoUrl} alt="USDC" className="w-8 h-8" />
-                      <div>
-                        <CardTitle className="text-foreground">Receive USDC</CardTitle>
-                        <CardDescription>SPL Token (Devnet)</CardDescription>
-                      </div>
+              {/* Token Receive Card */}
+              <Card className="glass-strong border-purple-500/20">
+                <CardHeader className="pb-3 border-b border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#2775CA]/10 flex items-center justify-center border border-[#2775CA]/30">
+                      <img src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png" alt="USDC" className="w-6 h-6" />
                     </div>
-                    {/* Account status indicator */}
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${usdcAtaExists
-                        ? 'bg-green-500/20 text-green-500'
-                        : 'bg-yellow-500/20 text-yellow-500'
-                      }`}>
-                      {usdcAtaExists ? '✓ Ready' : '⚠ Setup Required'}
+                    <div>
+                      <CardTitle className="text-foreground">Receive USDC</CardTitle>
+                      <CardDescription>Get your address to receive gasless USDC</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Show Create Account button if ATA doesn't exist */}
-                  {!usdcAtaExists && (
-                    <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 space-y-3">
-                      <p className="text-sm text-yellow-500 font-medium">
-                        ⚠️ Token Account Required
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Before you can receive USDC, you need to create a token account.
-                        This is a one-time setup that requires a small transaction.
-                      </p>
-                      <Button
-                        onClick={createUsdcAta}
-                        disabled={creatingAta}
-                        variant="gradient"
-                        className="w-full"
-                      >
-                        {creatingAta ? (
-                          <>
-                            <LoadingSpinner size="sm" color="white" />
-                            <span className="ml-2">Creating Account...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Coins className="h-4 w-4 mr-2" />
-                            Create USDC Account
-                          </>
-                        )}
-                      </Button>
+                <CardContent className="space-y-6 pt-6">
+                  {/* Account Status and Setup */}
+                  {!selectedAtaExists ? (
+                    <div className="space-y-4">
+                      {/* Warning Banner */}
+                      <div className="p-4 rounded-xl border-2 border-amber-500/40 bg-amber-500/10">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 rounded-full bg-amber-500/20 flex-shrink-0">
+                            <svg className="h-5 w-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-amber-400">Cannot Receive USDC Yet!</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                              You need to initialize your USDC account first. Without this, wallets like Phantom <strong>will fail</strong> when trying to send USDC to you.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Setup Card */}
+                      <div className="p-5 rounded-xl border-2 border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-cyan-500/5">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
+                            1
+                          </div>
+                          <div>
+                            <p className="text-base font-bold text-foreground">Initialize USDC Account</p>
+                            <p className="text-xs text-muted-foreground">One-time setup • Requires ~0.002 SOL for rent</p>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                          Solana requires a token account (ATA) to hold SPL tokens like USDC. This creates your personal USDC vault on the blockchain.
+                        </p>
+
+                        <Button
+                          onClick={() => createTokenAta()}
+                          disabled={creatingAta}
+                          className="w-full font-bold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 shadow-lg shadow-blue-500/20"
+                          size="lg"
+                        >
+                          {creatingAta ? (
+                            <>
+                              <LoadingSpinner size="sm" color="white" />
+                              <span className="ml-2">Creating Account...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Coins className="h-4 w-4 mr-2" />
+                              Initialize USDC Account
+                            </>
+                          )}
+                        </Button>
+
+                        {/* Get SOL hint */}
+                        <p className="text-[11px] text-muted-foreground text-center mt-3">
+                          Need SOL? Get some from the <a href={FAUCET_URL} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">Solana Faucet</a> first.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Success Badge */}
+                      <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-full bg-green-500/10 border border-green-500/30 w-fit mx-auto">
+                        <Check className="h-4 w-4 text-green-400" />
+                        <span className="text-xs font-semibold text-green-400">USDC Account Ready</span>
+                      </div>
+
+                      {/* QR Code */}
+                      <div className="flex flex-col items-center justify-center space-y-4">
+                        <div className="p-4 bg-white rounded-2xl shadow-2xl border-4 border-white/5">
+                          {selectedAta ? (
+                            <QRCodeSVG value={selectedAta} size={180} level="H" />
+                          ) : (
+                            <div className="w-44 h-44 flex items-center justify-center">
+                              <Loader2 className="h-10 w-10 animate-spin text-primary/50" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-center">
+                          <p className="text-xs font-bold uppercase tracking-wider text-blue-400">
+                            Your USDC Address
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Send USDC-Dev to this address from Phantom or any wallet
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  {/* QR Code and Address (always show, but indicate if not ready) */}
-                  <div className="flex justify-center">
-                    <div className={`p-3 bg-white rounded-lg shadow ${!usdcAtaExists ? 'opacity-50' : ''}`}>
-                      {usdcAta ? (
-                        <QRCodeSVG value={usdcAta} size={160} level="H" />
-                      ) : (
-                        <div className="w-40 h-40 flex items-center justify-center">
-                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {/* Address Display */}
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">USDC Token Account</label>
+                    <label className="text-xs font-medium text-muted-foreground">USDC Token Address</label>
                     <div className="flex items-center gap-2">
                       <Input
-                        value={usdcAta}
+                        value={selectedAta || 'Initialize account first...'}
                         readOnly
-                        className="font-mono text-xs flex-1"
+                        className="font-mono text-xs flex-1 bg-white/5 border-white/10 h-11"
                       />
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         size="icon"
-                        onClick={() => copyUsdcAta(usdcAta)}
-                        className="flex-shrink-0"
+                        onClick={() => copyAta(selectedAta || '')}
+                        className="h-11 w-11 shrink-0"
+                        disabled={!selectedAtaExists}
                       >
-                        {copiedUsdc ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        {copiedAta ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
 
-                  {/* Faucet link - only enabled when account exists */}
-                  <a
-                    href="https://spl-token-faucet.com/?token-name=USDC-Devnet"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${usdcAtaExists
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-muted text-muted-foreground cursor-not-allowed pointer-events-none'
-                      }`}
-                  >
-                    <Coins className="h-4 w-4" />
-                    Get Devnet USDC (Faucet)
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  {/* Faucet Link */}
+                  {selectedAtaExists && (
+                    <a
+                      href={TOKENS.USDC_DEV.faucetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl text-sm font-bold transition-all transform hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20"
+                    >
+                      <Coins className="h-5 w-5" />
+                      Get USDC-Dev from Faucet
+                      <ExternalLink className="h-3 w-3 opacity-50" />
+                    </a>
+                  )}
 
-                  {usdcAtaExists && (
-                    <p className="text-xs text-center text-green-500">
-                      ✓ Your account is ready to receive USDC!
-                    </p>
+                  {error && (
+                    <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+                      <p className="text-sm text-destructive font-medium">{error}</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>

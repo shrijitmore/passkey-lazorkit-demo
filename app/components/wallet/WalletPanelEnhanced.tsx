@@ -36,7 +36,7 @@ export default function WalletPanelEnhanced() {
 
   // Balance Hooks
   const { balance: solBalance, isLoadingBalance: isLoadingSol, refreshBalance: refreshSol } = useBalance();
-  const { balance: usdcBalance, isLoading: isLoadingUsdc, refresh: refreshUsdc } = useTokenBalance(smartWalletPubkey, TOKENS.USDC.mint);
+  const { balance: usdcBalance, isLoading: isLoadingUsdc, refresh: refreshUsdc } = useTokenBalance(smartWalletPubkey, TOKENS.USDC_DEV.mint);
   const { price: solPrice, isLoading: isLoadingPrice } = useSolPrice();
 
   const { copy: copyAddress, copied } = useCopyToClipboard();
@@ -48,7 +48,7 @@ export default function WalletPanelEnhanced() {
   // Calculate Totals
   const portfolioValue = useMemo(() => {
     const solVal = (solBalance || 0) * solPrice;
-    const usdcVal = (usdcBalance || 0) * 1; // USDC = $1 approx
+    const usdcVal = (usdcBalance || 0) * 1;
     return solVal + usdcVal;
   }, [solBalance, usdcBalance, solPrice]);
 
@@ -57,7 +57,7 @@ export default function WalletPanelEnhanced() {
     refreshUsdc();
   };
 
-  // Fetch USDC balance when wallet connects (on-demand, not auto)
+  // Fetch token balances when wallet connects
   React.useEffect(() => {
     if (smartWalletPubkey) {
       // Small delay to let things settle
@@ -137,10 +137,15 @@ export default function WalletPanelEnhanced() {
             </div>
 
             {(walletError || connectionError) && (
-              <AlertMessage
-                variant="error"
-                message={connectionError || walletError?.message || 'Unknown connection error'}
-              />
+              <div className="w-full space-y-2">
+                <AlertMessage
+                  variant="error"
+                  message={connectionError || walletError?.message || 'Unknown connection error'}
+                />
+                <p className="text-[10px] text-center text-gray-500 italic">
+                  Tip: Ensure you are on <b>https://</b> and biometric support is enabled in your browser.
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -260,7 +265,7 @@ export default function WalletPanelEnhanced() {
           <div className="glass-dark rounded-xl p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-[#2775CA]/10 flex items-center justify-center border border-[#2775CA]/30">
-                <img src={TOKENS.USDC.logoUrl} alt="USDC" className="w-6 h-6" />
+                <img src={TOKENS.USDC_DEV.logoUrl} alt="USDC-Dev" className="w-6 h-6" />
               </div>
               <div>
                 <p className="font-semibold text-white">USD Coin</p>

@@ -102,15 +102,16 @@ export function parseError(error: unknown): ErrorInfo {
     };
   }
 
-  // Simulation failed
+  // Simulation failed or valid transaction generation failed (Portal-specific)
   if (
     message.includes('simulation failed') ||
-    message.includes('Transaction simulation')
+    message.includes('Transaction simulation') ||
+    message.includes('generate a valid transaction')
   ) {
     return {
       message,
       userFriendly:
-        'Transaction simulation failed.\n\nThis means the transaction would fail on-chain.\n\nCommon causes:\n• Insufficient balance (including fees)\n• Invalid recipient address\n• Network issues\n\nTry:\n• Check your balance\n• Verify the recipient address is valid\n• Try a smaller amount\n• Wait a moment and try again',
+        'Transaction simulation failed.\n\nThis means the transaction would fail on-chain.\n\nCommon causes:\n• **Insufficient SOL for Rent**: If the recipient doesn\'t have a USDC account, you need approx 0.0021 SOL to create it for them.\n• **Insufficient Balance**: Check if you have enough USDC (including any fees).\n• **Invalid Recipient**: Double check the Solana address.\n\nTry:\n• Use the Faucet button to get some SOL\n• Verify recipient address\n• Try a smaller amount',
       code: 'SIMULATION_FAILED',
     };
   }
