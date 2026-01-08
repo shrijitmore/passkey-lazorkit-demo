@@ -20,7 +20,7 @@ import TransactionHistory from './components/wallet/TransactionHistory';
 import { getSubscriptions } from './lib/subscription/storage';
 import { useBalance } from './contexts/BalanceContext';
 import { useWebAuthnConnection } from './lib/hooks/useWebAuthnConnection';
-import { useAllTokenBalances } from './lib/hooks/useAllTokenBalances';
+import { useTokens } from './contexts/TokenContext';
 import { useSolPrice } from './lib/hooks/useSolPrice';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
@@ -28,18 +28,10 @@ export default function DashboardPage() {
   const { isConnected, smartWalletPubkey } = useWallet();
   const { connect, isConnecting } = useWebAuthnConnection();
   const { balance: solBalance, isLoadingBalance: isLoadingSol, refreshBalance: refreshSol } = useBalance();
-  const { tokens, isLoading: isLoadingTokens, refresh: refreshTokens } = useAllTokenBalances(smartWalletPubkey);
+  const { tokens, isLoadingTokens, refreshTokens } = useTokens();
   const { price: solPrice } = useSolPrice();
   const router = useRouter();
   const [subscriptionCount, setSubscriptionCount] = useState(0);
-
-  // Fetch tokens when wallet connects
-  useEffect(() => {
-    if (smartWalletPubkey) {
-      const timer = setTimeout(() => refreshTokens(), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [smartWalletPubkey]);
 
   useEffect(() => {
     if (isConnected && smartWalletPubkey) {
