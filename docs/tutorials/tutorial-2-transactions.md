@@ -143,9 +143,18 @@ const signature = await signTransaction({
 - Token transfers: May be sponsored by paymaster
 - Automatic retry logic handles credential refresh and transient errors
 
-## Step 3: Create a Simple Transfer Transaction
+## Step 3: Real-World Example: SendTab.tsx
 
-Based on the [official example](https://docs.lazorkit.com/react-sdk/getting-started#4-sending-transactions), here's how to send a transfer:
+While you can build a simple transfer button, a production-ready application needs a more comprehensive interface. In this repository, we've implemented the **`SendTab.tsx`** component (`app/components/wallet/tabs/SendTab.tsx`) which serves as our main transaction UI.
+
+### Key Features of `SendTab.tsx`:
+
+- **Token Selector**: Seamlessly switch between Native SOL and SPL Tokens (like USDC).
+- **QR Scanner**: Scan recipient addresses using the device camera.
+- **Balance Validation**: Real-time checking to prevent transactions that exceed available funds.
+- **Robust Error Handling**: Uses `parseError` to provide human-readable feedback for common Solana and WebAuthn errors.
+
+Here's a simplified version of how the transfer logic is implemented:
 
 ```typescript
 // app/components/TransferButton.tsx
@@ -493,33 +502,69 @@ const transferInstruction = SystemProgram.transfer({
 });
 ```
 
-### Transfer Tokens (SPL Token)
+### Transfer Tokens (SPL Token) - Gasless!
+
+To send SPL tokens (like USDC) with gasless sponsorship (Paymaster), you need to:
+1.  Get the Mint Address (e.g., Devnet USDC-Dev)
+2.  Handle Associated Token Accounts (ATA) for sender and recipient
+3.  Create the transfer instruction
+
+> **Note:** There are multiple USDC tokens on Devnet. This example uses **USDC-Dev** (`Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr`) which is compatible with Phantom and spl-token-faucet.com.
 
 ```typescript
-import {
-  createTransferInstruction,
-  getAssociatedTokenAddress,
+import { 
+  getAssociatedTokenAddress, 
+  createAssociatedTokenAccountInstruction, 
+  createTransferInstruction, 
+  TOKEN_PROGRAM_ID, 
+  ASSOCIATED_TOKEN_PROGRAM_ID 
 } from '@solana/spl-token';
 
-// Get token accounts
-const fromTokenAccount = await getAssociatedTokenAddress(
-  tokenMint,
-  senderPubkey
-);
-const toTokenAccount = await getAssociatedTokenAddress(
-  tokenMint,
-  recipientPubkey
-);
+const handleTokenTransfer = async () => {
+  // USDC-Dev mint (compatible with Phantom and spl-token-faucet.com)
+  const usdcMint = new PublicKey('Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
+  const amount = 10 * 1000000; // 10 USDC (6 decimals)
 
-// Create transfer instruction
-const tokenTransferInstruction = createTransferInstruction(
-  fromTokenAccount,
-  toTokenAccount,
-  senderPubkey,
-  1000000, // Amount (with decimals)
-  []
-);
+  const instructions = [];
+
+  // 1. Get Sender ATA
+  const senderAta = await getAssociatedTokenAddress(
+    usdcMint,
+    smartWalletPubkey
+  );
+
+  // 2. Get Recipient ATA - and create if needed
+  const recipientAta = await getAssociatedTokenAddress(
+    usdcMint,
+    recipientPubkey
+  );
+
+  // Check if recipient account exists (if not, add creation instruction)
+  // Note: For smart wallets, we can just optimistically add the create instruction 
+  // if we're unsure, or check strict existence via connection.getAccountInfo
+  // In our helper utilities, we check first.
+  
+  // 3. Create Transfer Instruction
+  const transferIx = createTransferInstruction(
+    senderAta,
+    recipientAta,
+    smartWalletPubkey,
+    amount,
+    [],
+    TOKEN_PROGRAM_ID
+  );
+  
+  instructions.push(transferIx);
+
+  // 4. Sign and Send
+  // The Paymaster will likely sponsor this transaction because it's a token transfer!
+  const signature = await signTransaction({
+    instructions,
+  });
+};
 ```
+
+**Key Takeaway:** Unlike native SOL transfers where you pay the fee, **LazorKit Paymasters frequently sponsor SPL Token transfers**, making them completely gasless for the user!
 
 ### Multiple Instructions in One Transaction
 

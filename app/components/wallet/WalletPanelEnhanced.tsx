@@ -3,27 +3,16 @@
  * 
  * A comprehensive example demonstrating LazorKit SDK integration:
  * - Passkey authentication (connect/disconnect)
- * - Balance display and management
- * - SOL transfers with passkey signing
+ * - Multi-asset Portfolio Display (SOL + USDC)
+ * - Total Portfolio Value calculation
+ * - Send Transactions (Native SOL & Gasless USDC)
  * - Transaction history
- * - Copy wallet address functionality
  * 
  * This component showcases the core LazorKit features in a real-world UI.
- * 
- * Key LazorKit Features Used:
- * - useWallet() hook for wallet state and methods
- * - connect() for passkey authentication
- * - smartWalletPubkey for wallet address
- * - signAndSendTransaction() for transactions (via TransferModal)
- * 
- * @example
- * ```tsx
- * <WalletPanelEnhanced />
- * ```
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useWallet } from '@lazorkit/wallet';
 import TransferModal from './TransferModal';
 import TransactionHistory from './TransactionHistory';
@@ -32,9 +21,11 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useBalance } from '../../contexts/BalanceContext';
 import { useWebAuthnConnection } from '../../lib/hooks/useWebAuthnConnection';
 import { useCopyToClipboard } from '../../lib/hooks/useCopyToClipboard';
+import { useTokenBalance } from '../../lib/hooks/useTokenBalance';
+import { useSolPrice } from '../../lib/hooks/useSolPrice';
 import { getAddressExplorerUrl, getTransactionExplorerUrl } from '../../lib/utils/explorerUrls';
 import { FAUCET_URL } from '../../lib/constants/urls';
-import BalanceDisplay from '../shared/BalanceDisplay';
+import { TOKENS } from '../../lib/constants/tokens';
 import AlertMessage from '../ui/AlertMessage';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
@@ -42,24 +33,52 @@ export default function WalletPanelEnhanced() {
   const { smartWalletPubkey, isConnected, disconnect, error: walletError } = useWallet();
   const { connect, isConnecting, error: connectionError } = useWebAuthnConnection();
   const { theme } = useTheme();
-  const { balance, isLoadingBalance, refreshBalance } = useBalance();
+
+  // Balance Hooks
+  const { balance: solBalance, isLoadingBalance: isLoadingSol, refreshBalance: refreshSol } = useBalance();
+  const { balance: usdcBalance, isLoading: isLoadingUsdc, refresh: refreshUsdc } = useTokenBalance(smartWalletPubkey, TOKENS.USDC_DEV.mint);
+  const { price: solPrice, isLoading: isLoadingPrice } = useSolPrice();
+
   const { copy: copyAddress, copied } = useCopyToClipboard();
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [lastTxSignature, setLastTxSignature] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [txHistoryRefreshTrigger, setTxHistoryRefreshTrigger] = useState(0);
 
+  // Calculate Totals
+  const portfolioValue = useMemo(() => {
+    const solVal = (solBalance || 0) * solPrice;
+    const usdcVal = (usdcBalance || 0) * 1;
+    return solVal + usdcVal;
+  }, [solBalance, usdcBalance, solPrice]);
+
+  const refreshAll = () => {
+    refreshSol();
+    refreshUsdc();
+  };
+
+  // Fetch token balances when wallet connects
+  React.useEffect(() => {
+    if (smartWalletPubkey) {
+      // Small delay to let things settle
+      const timer = setTimeout(() => {
+        refreshUsdc();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [smartWalletPubkey]);
+
   const handleTransferSuccess = (signature: string) => {
     setLastTxSignature(signature);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 5000);
-    refreshBalance();
+    refreshAll();
     setTimeout(() => {
       setTxHistoryRefreshTrigger(prev => prev + 1);
     }, 3000);
   };
 
-  // Handle connect using the hook (validation is built-in)
+  // Handle connect using the hook
   const handleConnect = async () => {
     await connect();
   };
@@ -87,7 +106,7 @@ export default function WalletPanelEnhanced() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            
+
             <div className="text-center">
               <h3 className="text-2xl font-bold mb-2 text-primary-text">Connect Your Wallet</h3>
               <p className="text-secondary text-sm">
@@ -117,12 +136,16 @@ export default function WalletPanelEnhanced() {
               </div>
             </div>
 
-            {/* Connection error display */}
             {(walletError || connectionError) && (
-              <AlertMessage
-                variant="error"
-                message={connectionError || walletError?.message || 'Unknown connection error'}
-              />
+              <div className="w-full space-y-2">
+                <AlertMessage
+                  variant="error"
+                  message={connectionError || walletError?.message || 'Unknown connection error'}
+                />
+                <p className="text-[10px] text-center text-gray-500 italic">
+                  Tip: Ensure you are on <b>https://</b> and biometric support is enabled in your browser.
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -132,7 +155,7 @@ export default function WalletPanelEnhanced() {
 
   const walletAddress = smartWalletPubkey?.toString() || '';
   const explorerLink = walletAddress ? getAddressExplorerUrl(walletAddress) : '';
-  const hasBalance = balance !== null && balance > 0;
+  const isLoading = isLoadingSol || isLoadingUsdc || isLoadingPrice;
 
   return (
     <div className="w-full max-w-4xl space-y-6" data-testid="wallet-panel">
@@ -163,143 +186,116 @@ export default function WalletPanelEnhanced() {
         </div>
       )}
 
-      {/* Wallet Info Card */}
+      {/* Main Portfolio Card */}
       <div className="glass-strong rounded-2xl p-6" data-testid="wallet-info">
-        <div className="flex items-center justify-between mb-6">
+        {/* Header with Disconnect */}
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 gradient-primary rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
+            <div className="relative">
+              <div className="w-10 h-10 gradient-primary rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#1a1b23] z-10" />
             </div>
             <div>
-              <p className="text-xs text-secondary">Smart Wallet</p>
-              <p className="font-semibold text-primary-text">Connected</p>
+              <p className="text-sm font-medium text-primary-text">Smart Wallet</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-secondary font-mono">
+                  {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+                </p>
+                <button
+                  onClick={() => copyAddress(walletAddress)}
+                  className="text-secondary hover:text-primary transition-colors"
+                >
+                  {copied ? <span className="text-green-400 text-[10px]">Copied</span> : <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
+                </button>
+              </div>
             </div>
           </div>
           <button
             onClick={disconnect}
-            className="text-sm text-secondary hover:text-primary-text transition-colors"
-            data-testid="disconnect-btn"
+            className="text-xs px-3 py-1.5 glass rounded-lg hover:bg-white/10 text-secondary hover:text-primary-text transition-all"
           >
             Disconnect
           </button>
         </div>
 
-        {/* Balance */}
-        <div className="glass-dark rounded-xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-secondary">Total Balance</p>
-            {isLoadingBalance && balance !== null && (
-              <span className="text-xs text-primary flex items-center gap-1">
-                <LoadingSpinner size="sm" color="primary" />
-                Updating...
-              </span>
-            )}
+        {/* Total Portfolio Value */}
+        <div className="text-center mb-10">
+          <p className="text-sm text-secondary mb-1">Total Portfolio Value</p>
+          <div className="flex items-baseline justify-center gap-1">
+            <span className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
+              ${portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <span className="text-sm text-secondary font-medium">USD</span>
           </div>
-          <div className="flex items-end gap-3">
-            {isLoadingBalance && balance === null ? (
-              <div className="flex items-center gap-2">
-                <LoadingSpinner size="md" color="primary" />
-                <p className="text-4xl font-bold gradient-text">0.0000</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-4xl font-bold gradient-text">
-                  {balance !== null ? balance.toFixed(4) : '0.0000'}
-                </p>
-                <p className="text-lg text-secondary mb-1">SOL</p>
-              </>
-            )}
-          </div>
-          <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-secondary">Solana Devnet</p>
-            <button
-              onClick={refreshBalance}
-              disabled={isLoadingBalance}
-              className="p-1.5 glass rounded-lg hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Refresh balance"
-              aria-label="Refresh balance"
-            >
-              <svg
-                className={`w-4 h-4 text-primary ${isLoadingBalance ? 'animate-spin' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/5">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs text-secondary">Devnet Live</span>
+            <button onClick={refreshAll} className="ml-1 text-primary hover:text-white transition-colors" title="Refresh">
+              <svg className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
           </div>
         </div>
 
-        {/* Address */}
-        <div className="glass-dark rounded-xl p-4 mb-6">
-          <p className="text-xs text-secondary mb-2">Wallet Address</p>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-mono text-primary-text truncate flex-1">
-              {walletAddress}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => copyAddress(walletAddress)}
-                className="px-3 py-2 glass rounded-lg hover:bg-white/10 transition-all text-sm"
-                data-testid="copy-address-btn"
-              >
-                {copied ? (
-                  <span className="text-green-400 flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Copied
-                  </span>
-                ) : (
-                  <span className="text-primary flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Copy
-                  </span>
-                )}
-              </button>
-              <a
-                href={explorerLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 glass rounded-lg hover:bg-white/10 transition-all"
-                data-testid="explorer-link"
-              >
-                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
+        {/* Assets List */}
+        <div className="space-y-3 mb-8">
+          {/* SOL Asset */}
+          <div className="glass-dark rounded-xl p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center border border-purple-500/30">
+                <img src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png" alt="SOL" className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">Solana</p>
+                <p className="text-xs text-secondary">Native Token</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="font-medium text-white">{(solBalance || 0).toFixed(4)} SOL</p>
+              <p className="text-xs text-secondary">
+                ${((solBalance || 0) * solPrice).toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          {/* USDC Asset */}
+          <div className="glass-dark rounded-xl p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-[#2775CA]/10 flex items-center justify-center border border-[#2775CA]/30">
+                <img src={TOKENS.USDC_DEV.logoUrl} alt="USDC-Dev" className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-white">USD Coin</p>
+                <p className="text-xs text-secondary">Spl Token</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="font-medium text-white">{(usdcBalance || 0).toFixed(2)} USDC</p>
+              <p className="text-xs text-secondary">
+                ${(usdcBalance || 0).toFixed(2)}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => setShowTransferModal(true)}
-            disabled={!hasBalance}
-            className={`px-6 py-4 gradient-primary text-white rounded-xl font-semibold transition-all ${
-              hasBalance ? 'hover:opacity-90 btn-glow' : 'opacity-50 cursor-not-allowed'
-            }`}
+            className="px-6 py-4 gradient-primary text-white rounded-xl font-semibold transition-all hover:opacity-90 btn-glow"
             data-testid="send-sol-btn"
           >
             <div className="flex items-center justify-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
-              Send SOL
+              Send Assets
             </div>
           </button>
-          
+
           <a
             href={FAUCET_URL}
             target="_blank"
@@ -311,27 +307,10 @@ export default function WalletPanelEnhanced() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Get Devnet SOL
+              Faucet
             </div>
           </a>
         </div>
-
-        {/* Passkey Authentication Feature Highlight */}
-        {!hasBalance && (
-          <div className="mt-6 glass-dark rounded-xl p-4 border-2 border-yellow-500/20">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <div>
-                <p className="text-sm font-semibold text-yellow-400 mb-1">Fund Your Wallet</p>
-                <p className="text-xs text-secondary">
-                  Get Devnet SOL from the faucet to start testing. Transactions are signed with passkeys via LazorKit!
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Transaction History */}

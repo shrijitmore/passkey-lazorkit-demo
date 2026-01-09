@@ -41,6 +41,10 @@ passkey-lazorkit-demo/
 │   │   │   ├── tabs.tsx
 │   │   │   └── TransactionStatus.tsx
 │   │   └── wallet/                # Wallet-related components
+│   │       ├── tabs/              # Tab-specific content
+│   │       │   ├── SendTab.tsx    # Send funds UI and logic
+│   │       │   ├── ReceiveTab.tsx # Receive funds UI/QR logic
+│   │       │   └── VerifyTab.tsx  # Ownership verification logic
 │   │       ├── TransactionHistory.tsx
 │   │       ├── TransferModal.tsx
 │   │       └── WalletPanelEnhanced.tsx
@@ -140,6 +144,9 @@ Wallet functionality components:
 - **TransactionHistory.tsx** - Transaction history display
 - **TransferModal.tsx** - SOL transfer modal
 - **WalletPanelEnhanced.tsx** - Enhanced wallet panel
+- **tabs/SendTab.tsx** - Comprehensive send functionality
+- **tabs/ReceiveTab.tsx** - Address display and USDC initialization
+- **tabs/VerifyTab.tsx** - Ownership verification via message signing
 
 ## 📚 Library Organization
 
