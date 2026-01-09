@@ -1,32 +1,48 @@
 # Tutorial 2: Sending Transactions with LazorKit
 
-This tutorial demonstrates how to send transactions on Solana using LazorKit's smart wallet with passkey authentication.
+**Ready to send your first transaction?** This tutorial shows you how to send SOL using LazorKit's smart wallet. The best part? Users just approve with their passkey—no seed phrases, no complicated flows.
 
-> **Reference**: Based on [LazorKit Getting Started Guide](https://docs.lazorkit.com/react-sdk/getting-started#4-sending-transactions) and [signAndSendTransaction API](https://docs.lazorkit.com/react-sdk/use-wallet#signandsendtransaction)
+> 📚 **Reference**: Based on [LazorKit Getting Started Guide](https://docs.lazorkit.com/react-sdk/getting-started#4-sending-transactions) and [signAndSendTransaction API](https://docs.lazorkit.com/react-sdk/use-wallet#signandsendtransaction)
 
-## Prerequisites
+## 🎯 What You'll Build
 
-- Completed [Tutorial 1: Passkey Wallet Setup](./tutorial-1-passkey-wallet.md)
-- A connected wallet with some Devnet SOL (for the transaction amount and fees)
+A transaction system that:
+- ✅ Sends SOL with a simple biometric approval
+- ✅ Handles errors gracefully (because things go wrong)
+- ✅ Shows transaction status in real-time
+- ✅ Works with both SOL and SPL tokens
 
-## What You'll Learn
+## 📋 Prerequisites
 
-- Understanding transaction fees and paymaster behavior
-- Creating transaction instructions
-- Using `signAndSendTransaction` method
-- Handling transaction results and errors
-- Transaction options and configuration
+Before starting, make sure you:
+- ✅ Completed [Tutorial 1: Passkey Wallet Setup](./tutorial-1-passkey-wallet.md)
+- ✅ Have a connected wallet with some Devnet SOL
+
+> **💡 Need Devnet SOL?** Visit the [Solana Faucet](https://faucet.solana.com) and request some SOL to your wallet address.
+
+## 🎓 What You'll Learn
+
+- How transaction fees work (spoiler: it's simpler than you think)
+- Creating transaction instructions (the building blocks)
+- Using `signAndSendTransaction` (the magic method)
+- Handling errors like a pro (because users will make mistakes)
+- Transaction options and configuration (for when you need more control)
 
 ## Step 1: Understanding Transaction Fees
 
-**Important Note on Native SOL Transfers:**
+**Let's talk about fees—the boring but important part.**
 
-This demo uses **wallet-paid transactions** for native SOL transfers. This reflects realistic production behavior, as paymasters typically have policies that exclude native SOL transfers from sponsorship.
+### 💰 How Fees Work
 
-**How it works:**
-- Transactions are signed by the user's passkey (biometric authentication)
-- Transaction fees are paid from the wallet balance
-- This is the standard behavior for native SOL transfers in production
+This demo uses **wallet-paid transactions** for native SOL transfers. This is realistic production behavior—most paymasters don't sponsor native SOL transfers.
+
+**Here's what happens:**
+1. User initiates transaction → Creates instruction
+2. User approves with passkey (biometric authentication)
+3. Transaction is signed and sent
+4. **Fees are paid from wallet balance** (usually ~0.000005 SOL)
+
+> **💡 Pro Tip:** For token transfers (like USDC), the paymaster often sponsors fees, making them gasless for users!
   
 **About Paymaster:**
 
@@ -157,7 +173,7 @@ While you can build a simple transfer button, a production-ready application nee
 Here's a simplified version of how the transfer logic is implemented:
 
 ```typescript
-// app/components/TransferButton.tsx
+// Example: Simple Transfer Button Component
 'use client';
 
 import { useState } from 'react';
@@ -986,7 +1002,7 @@ if (balanceSOL < requiredBalance) {
 export const RPC_URL = 'https://your-helius-endpoint.com';
 ```
 
-3. **See [RPC Configuration Guide](../guides/rpc-configuration.md)** for detailed setup instructions
+3. **Use a private RPC provider** - See the RPC Rate Limiting section in the main README for setup instructions (Helius, QuickNode, or Alchemy)
 
 **Temporary workaround:**
 - Wait 1-2 minutes before retrying

@@ -1,36 +1,52 @@
 # Tutorial 1: Creating a Passkey-Based Wallet with LazorKit
 
-This tutorial will guide you through integrating LazorKit to create a passkey-based Solana wallet. By the end, users will be able to connect their wallet using biometric authentication (Face ID, Touch ID, or Windows Hello) without managing seed phrases.
+**Say goodbye to seed phrases!** In this tutorial, you'll build a Solana wallet that uses Face ID, Touch ID, or Windows Hello—no passwords, no seed phrases, just you.
 
-> **Reference**: Based on [LazorKit Getting Started Guide](https://docs.lazorkit.com/react-sdk/getting-started) and [useWallet API](https://docs.lazorkit.com/react-sdk/use-wallet)
+By the end, your users will be able to connect their wallet with a simple biometric approval. It's that easy.
 
-## Prerequisites
+> 📚 **Reference**: Based on [LazorKit Getting Started Guide](https://docs.lazorkit.com/react-sdk/getting-started) and [useWallet API](https://docs.lazorkit.com/react-sdk/use-wallet)
 
-- Node.js 18+ installed
-- Basic knowledge of React and Next.js
-- A modern browser with WebAuthn support (Chrome, Safari, Edge)
+## 🎯 What You'll Build
 
-## What You'll Learn
+A complete passkey-based wallet connection that:
+- ✅ Uses biometric authentication (Face ID, Touch ID, Windows Hello)
+- ✅ Creates a smart wallet automatically
+- ✅ Handles errors gracefully
+- ✅ Works across devices (if passkey is synced)
 
-- How to install and configure LazorKit
-- How to set up the LazorKit Provider
-- How to implement passkey-based wallet connection
-- How to handle wallet state and errors
-- Understanding Smart Wallets (PDAs)
+## 📋 Prerequisites
+
+Before we start, make sure you have:
+- **Node.js 18+** installed
+- **Basic React/Next.js knowledge** (you've built a component or two)
+- **A modern browser** with WebAuthn support (Chrome, Safari, Edge, Firefox)
+
+> **💡 Don't have these?** No worries—install Node.js from [nodejs.org](https://nodejs.org) and you're good to go!
+
+## 🎓 What You'll Learn
+
+By the end of this tutorial, you'll know:
+- How to install and configure LazorKit (it's easier than you think!)
+- How to set up the LazorKit Provider (the foundation of everything)
+- How to implement passkey-based wallet connection (the magic happens here)
+- How to handle wallet state and errors (the boring but essential stuff)
+- Understanding Smart Wallets (PDAs) - what makes this all possible
 
 ## Step 1: Install Dependencies
 
-Install the required packages as shown in the [official documentation](https://docs.lazorkit.com/react-sdk/getting-started#1-installation):
+**Let's get started!** First, install the LazorKit SDK and Solana Web3.js:
 
 ```bash
 npm install @lazorkit/wallet @solana/web3.js
 ```
 
-**Note**: The documentation also mentions `@coral-xyz/anchor` for Anchor program interactions, but it's optional for basic wallet operations. This repository uses `@lazorkit/wallet` and `@solana/web3.js` as shown in `package.json`.
+That's it! Just two packages. 
 
-## Step 2: Polyfills for Next.js (If Needed)
+> **💡 Note**: You might see `@coral-xyz/anchor` mentioned in some docs—that's only needed if you're interacting with Anchor programs. For basic wallet operations, you only need these two packages.
 
-According to the [LazorKit documentation](https://docs.lazorkit.com/react-sdk/getting-started#nextjs), Next.js usually handles module resolution, but if you encounter `Buffer` errors, add this to your `layout.tsx` or provider:
+## Step 2: Polyfills for Next.js (Usually Not Needed)
+
+**Good news:** Next.js usually handles this automatically! But if you encounter `Buffer is not defined` errors, add this to your `layout.tsx` or provider:
 
 ```typescript
 // layout.tsx or providers.tsx
@@ -39,13 +55,13 @@ if (typeof window !== 'undefined') {
 }
 ```
 
-**Important**: Always ensure wallet logic runs on the client-side with `'use client'` directive.
+> **⚠️ Important**: Always use `'use client'` directive for components that use wallet hooks. Wallet logic must run on the client-side!
 
 ## Step 3: Set Up the LazorKit Provider
 
-The `LazorkitProvider` is the foundation of your LazorKit integration. It wraps your app and provides wallet context to all components.
+**This is where the magic starts!** The `LazorkitProvider` wraps your app and makes wallet functionality available everywhere. Think of it as the foundation—everything else builds on top of this.
 
-According to the [official documentation](https://docs.lazorkit.com/react-sdk/getting-started#provider-implementation), here's the default Devnet configuration:
+Here's how to set it up (based on the [official documentation](https://docs.lazorkit.com/react-sdk/getting-started#provider-implementation)):
 
 ```typescript
 // app/components/providers/LazorkitProviderWrapper.tsx
@@ -54,6 +70,7 @@ According to the [official documentation](https://docs.lazorkit.com/react-sdk/ge
 import { LazorkitProvider } from '@lazorkit/wallet';
 import { useMemo, type ReactNode } from 'react';
 import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
+import type { PartialLazorkitProviderConfig } from '../../lib/types/lazorkit';
 
 export default function LazorkitProviderWrapper({
   children,
@@ -68,15 +85,18 @@ export default function LazorkitProviderWrapper({
     []
   );
 
+  // Additional provider props that may not be in official SDK types but are supported at runtime
+  const additionalProps: PartialLazorkitProviderConfig = {
+    isDebug: true,
+    network: 'devnet',
+  };
+
   return (
     <LazorkitProvider
       rpcUrl={RPC_URL}
       portalUrl={PORTAL_URL}
       paymasterConfig={paymasterConfig}
-      {...({
-        isDebug: true,
-        network: 'devnet',
-      } as PartialLazorkitProviderConfig)}
+      {...(additionalProps as PartialLazorkitProviderConfig)}
     >
       {children}
     </LazorkitProvider>
@@ -109,20 +129,26 @@ In your root layout (`app/layout.tsx`), wrap your application. For better organi
 
 import { ReactNode } from 'react';
 import LazorkitProviderWrapper from './LazorkitProviderWrapper';
-import { ThemeProvider } from '../../contexts/ThemeContext'; // If you have a theme provider
+import { ThemeProvider } from '../../contexts/ThemeContext';
+import { BalanceProvider } from '../../contexts/BalanceContext';
+import { TokenProvider } from '../../contexts/TokenContext';
 
 export default function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
       <LazorkitProviderWrapper>
-        {children}
+        <BalanceProvider>
+          <TokenProvider>
+            {children}
+          </TokenProvider>
+        </BalanceProvider>
       </LazorkitProviderWrapper>
     </ThemeProvider>
   );
 }
 ```
 
-**Note**: In this demo, `Providers.tsx` includes both `ThemeProvider` and `LazorkitProviderWrapper`. If you don't need a theme provider, you can use `LazorkitProviderWrapper` directly.
+**Note**: In this demo, `Providers.tsx` includes multiple providers for a complete setup. If you're building a minimal example, you can use `LazorkitProviderWrapper` directly in your layout.
 
 Then in your root layout:
 

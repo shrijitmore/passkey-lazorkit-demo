@@ -1,21 +1,21 @@
 # Tutorial 3: Session Persistence Across Devices with LazorKit
 
-This tutorial explains how LazorKit handles session persistence, allowing users to seamlessly reconnect their wallet across different devices and browser sessions.
+**Ever wonder how users stay logged in?** This tutorial explains how LazorKit handles session persistence, so users can seamlessly reconnect their wallet across different devices—just like they expect from modern apps.
 
-> **Reference**: Based on [LazorKit useWallet connect API](https://docs.lazorkit.com/react-sdk/use-wallet#connect) and [LazorKit Overview](https://docs.lazorkit.com/react-sdk)
+> 📚 **Reference**: Based on [LazorKit useWallet connect API](https://docs.lazorkit.com/react-sdk/use-wallet#connect) and [LazorKit Overview](https://docs.lazorkit.com/react-sdk)
 
-## Prerequisites
+## 🎯 What You'll Learn
 
-- Completed [Tutorial 1: Passkey Wallet Setup](./tutorial-1-passkey-wallet.md)
-- Understanding of WebAuthn and passkeys
+- How LazorKit manages sessions (the behind-the-scenes magic)
+- Auto-reconnect functionality (users love this!)
+- Cross-device wallet access (if passkey is synced)
+- Session lifecycle management (when to connect, when to disconnect)
+- Best practices for session handling (learn from our mistakes)
 
-## What You'll Learn
+## 📋 Prerequisites
 
-- How LazorKit manages sessions
-- Auto-reconnect functionality
-- Cross-device wallet access
-- Session lifecycle management
-- Best practices for session handling
+- ✅ Completed [Tutorial 1: Passkey Wallet Setup](./tutorial-1-passkey-wallet.md)
+- Basic understanding of WebAuthn and passkeys (don't worry, we'll explain as we go)
 
 ## Step 1: Understanding Session Persistence
 

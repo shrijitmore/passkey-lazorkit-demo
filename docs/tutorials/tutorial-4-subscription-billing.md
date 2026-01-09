@@ -1,23 +1,33 @@
 # Tutorial 4: Subscription Billing with Smart Wallets
 
-This tutorial demonstrates how to implement subscription billing using LazorKit's smart wallets with passkey authentication. Users approve once, and recurring payments can be automated.
+**Build Netflix-style subscriptions on Solana!** This tutorial shows you how to implement subscription billing using LazorKit's smart wallets. Users approve once with their passkey, and recurring payments can be automated.
 
-> **Reference**: Based on [LazorKit Getting Started Guide](https://docs.lazorkit.com/react-sdk/getting-started) and [signAndSendTransaction API](https://docs.lazorkit.com/react-sdk/use-wallet#signandsendtransaction)
+> 📚 **Reference**: Based on [LazorKit Getting Started Guide](https://docs.lazorkit.com/react-sdk/getting-started) and [signAndSendTransaction API](https://docs.lazorkit.com/react-sdk/use-wallet#signandsendtransaction)
 
-## Prerequisites
+## 🎯 What You'll Build
 
-- Completed [Tutorial 1: Passkey Wallet Setup](./tutorial-1-passkey-wallet.md)
-- Completed [Tutorial 2: Sending Transactions](./tutorial-2-transactions.md)
-- A connected wallet with some Devnet SOL
+A complete subscription system that:
+- ✅ Lets users subscribe with one passkey approval
+- ✅ Tracks subscription status and payment history
+- ✅ Handles subscription lifecycle (cancel, pause, resume)
+- ✅ Works with smart wallets (no seed phrases needed!)
 
-## What You'll Learn
+## 📋 Prerequisites
 
-- Understanding subscription billing with smart wallets
-- Creating subscriptions with one-time passkey approval
+- ✅ Completed [Tutorial 1: Passkey Wallet Setup](./tutorial-1-passkey-wallet.md)
+- ✅ Completed [Tutorial 2: Sending Transactions](./tutorial-2-transactions.md)
+- ✅ Have a connected wallet with some Devnet SOL
+
+> **💡 Tip:** This is the most advanced tutorial. Make sure you're comfortable with the basics first!
+
+## 🎓 What You'll Learn
+
+- How subscription billing works with smart wallets (the big picture)
+- Creating subscriptions with one-time passkey approval (the magic)
 - Managing subscription lifecycle (cancel, pause, resume)
-- Tracking payment history
-- Simulating recurring payments
-- Production implementation considerations
+- Tracking payment history (so users know what they paid)
+- Simulating recurring payments (for testing)
+- Production implementation considerations (the real-world stuff)
 
 ## Step 1: Understanding Subscription Billing
 
@@ -90,14 +100,15 @@ import { SystemProgram, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getConnection } from '../lib/rpc/connection';
 import { useTransactionSigning } from '../lib/hooks/useTransactionSigning';
 import { parseError } from '../lib/utils/errorHandling';
-import { addSubscription } from '../lib/subscription/storage';
+import { addSubscription, getSubscriptions } from '../lib/subscription/storage';
 import { generateSubscriptionId, calculateNextBillingDate } from '../lib/subscription/utils';
 import { SUBSCRIPTION_PLANS } from '../lib/constants/subscriptionPlans';
 import type { Subscription, SubscriptionPlanId } from '../lib/subscription/types';
 
-// Replace with your actual merchant wallet address
-const MERCHANT_WALLET = new PublicKey('YOUR_MERCHANT_WALLET_ADDRESS');
-// Note: In this demo, the merchant wallet is: 9T2zGaNBr7bKBBEvQ9AAGNwCG3iL4jVF2Z8TipqikpKG
+// Merchant wallet address - receives subscription payments
+// In this demo, we use: 9T2zGaNBr7bKBBEvQ9AAGNwCG3iL4jVF2Z8TipqikpKG
+// For your app, replace with your actual merchant wallet address
+const MERCHANT_WALLET = new PublicKey('9T2zGaNBr7bKBBEvQ9AAGNwCG3iL4jVF2Z8TipqikpKG');
 
 export default function SubscriptionDemo() {
   const { smartWalletPubkey, isConnected } = useWallet();
@@ -111,12 +122,27 @@ export default function SubscriptionDemo() {
       return;
     }
 
+    // Check if user already has an active subscription for this plan
+    const existingSubscriptions = getSubscriptions(smartWalletPubkey.toString());
+    const activeSubscription = existingSubscriptions.find(
+      (sub) => sub.planId === planId && sub.status === 'active'
+    );
+    
+    const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
+    if (activeSubscription) {
+      setError(`You already have an active ${plan?.name} subscription`);
+      return;
+    }
+
+    if (!plan) {
+      setError('Invalid plan selected');
+      return;
+    }
+
     setIsSubscribing(true);
     setError(null);
 
     try {
-      const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
-      if (!plan) throw new Error('Invalid plan');
 
       // Create transaction instruction
       const instruction = SystemProgram.transfer({
@@ -221,7 +247,17 @@ Track all payments for a subscription:
 
 ```typescript
 // app/components/subscription/SubscriptionPaymentHistory.tsx
+import type { Subscription } from '../../lib/subscription/types';
+import { formatDateTime } from '../../lib/subscription/utils';
+import { getTransactionExplorerUrl } from '../../lib/utils/explorerUrls';
+
 export default function SubscriptionPaymentHistory({ subscription }: { subscription: Subscription }) {
+  if (subscription.paymentHistory.length === 0) {
+    return (
+      <div>No payment history yet</div>
+    );
+  }
+
   return (
     <div>
       <h4>Payment History</h4>
@@ -232,9 +268,12 @@ export default function SubscriptionPaymentHistory({ subscription }: { subscript
             <div>
               <span>{payment.amount} SOL</span>
               <span>{formatDateTime(payment.timestamp)}</span>
+              <span className={payment.status === 'success' ? 'text-green-500' : 'text-red-500'}>
+                {payment.status}
+              </span>
             </div>
             <a
-              href={`https://explorer.solana.com/tx/${payment.txSignature}?cluster=devnet`}
+              href={getTransactionExplorerUrl(payment.txSignature)}
               target="_blank"
               rel="noopener noreferrer"
             >

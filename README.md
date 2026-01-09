@@ -19,34 +19,33 @@
 
 ## ✨ What This Example Demonstrates
 
-This repository showcases **real-world LazorKit SDK integration** with practical examples:
+**This isn't just a demo—it's a complete, production-ready example** that shows you how to build the future of Web3 UX. No seed phrases, no passwords, just biometric magic.
 
-### Core LazorKit Features
+### 🔐 Core LazorKit Features
 
--  **Passkey Authentication** - Complete implementation with Face ID, Touch ID, Windows Hello
--  **Smart Wallet Transactions** - Send SOL with passkey-secured signing (no seed phrases!)
--  **Paymaster Integration** - Gasless transaction support via paymaster configuration
--  **Message Signing** - Verify wallet ownership without on-chain transactions
--  **Transaction History** - Real-time transaction tracking and display
--  **QR Code Scanner** - Scan wallet addresses using device camera for easy transaction input
--  **Error Recovery** - Automatic detection and recovery from passkey cache issues
+-  **🔑 Passkey Authentication** - Face ID, Touch ID, Windows Hello. Complete implementation that just works.
+-  **💸 Smart Wallet Transactions** - Send SOL with a simple biometric approval. No seed phrases needed!
+-  **⚡ Paymaster Integration** - Gasless transactions for supported types. Users don't pay fees!
+-  **✍️ Message Signing** - Verify wallet ownership without spending SOL
+-  **📊 Transaction History** - Real-time tracking with beautiful UI
+-  **📷 QR Code Scanner** - Point, scan, send. No more typing long addresses!
+-  **🔄 Error Recovery** - Smart automatic recovery from passkey cache issues
 
-### Additional Examples
+### 🎁 Bonus Features
 
--  **Subscription Billing** - Recurring payments system using smart wallets
--  **Premium Responsive Excellence** - Strictly horizontal 3-column tabs on all devices (320px to 1440px)
--  **Modern UI** - Clean, high-end interface with shadcn/ui components, glassmorphism, and primary glows
--  **Mobile Optimized** - "Snug fit" aesthetic with zero clipping, tailored for iOS and Android
+-  **💳 Subscription Billing** - Build Netflix-style subscriptions on Solana. One approval, recurring payments.
+-  **📱 Premium Mobile UX** - Works flawlessly on 320px screens. Yes, really!
+-  **🎨 Modern UI** - Glassmorphism, smooth animations, and that premium feel
+-  **🚀 Production Ready** - Error handling, retry logic, and all the essential stuff
 
 ---
 
 ## 🌐 Live Demo
 
-**Deployed on Devnet:** [View Live Demo](https://passkey-lazorkit-demo.onrender.com) *(Update with your deployed URL)*
+**Deployed on Devnet:** [View Live Demo](https://passkey-lazorkit-demo.onrender.com)
 
 > **Note:** The live demo is deployed on Devnet. You can test passkey authentication and transactions. Get Devnet SOL from the [Solana Faucet](https://faucet.solana.com) to test transactions.
 
-**Deployment Instructions:** See [DEPLOYMENT.md](./DEPLOYMENT.md) for step-by-step deployment guide.
 
 ---
 
@@ -63,8 +62,8 @@ This repository showcases **real-world LazorKit SDK integration** with practical
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/lazorkit-starter.git
-cd lazorkit-starter
+git clone https://github.com/shrijitmore/passkey-lazorkit-demo.git
+cd passkey-lazorkit-demo
 
 # Install dependencies
 npm install
@@ -79,11 +78,13 @@ Open [https://localhost:3000](https://localhost:3000) in your browser.
 >
 > **First time setup:** Next.js will automatically generate self-signed certificates. Your browser will show a security warning - click "Advanced" → "Proceed to localhost" to continue. This is safe for local development.
 
-### First Steps
+### First Steps (3 Minutes to Success!)
 
-1. **Connect with Passkey**: Click "Connect with Passkey" and authenticate with your device's biometric (Face ID, Touch ID, or Windows Hello)
-2. **Get Devnet SOL**: Visit [Solana Faucet](https://faucet.solana.com) and request SOL to your wallet address
-3. **Send Transaction**: Navigate to Wallet page and transfer SOL to any address - just approve with your passkey!
+1. **🔐 Connect with Passkey** - Click "Connect with Passkey" and use Face ID/Touch ID/Windows Hello
+2. **💰 Get Devnet SOL** - Visit [Solana Faucet](https://faucet.solana.com) and request SOL to your wallet
+3. **🚀 Send Your First Transaction** - Go to Wallet page, enter an address, and approve with your passkey!
+
+**That's it!** You just sent a transaction without a seed phrase. Welcome to the future of Web3. 🎉
 
 ### SDK Installation & Configuration
 
@@ -92,8 +93,14 @@ The LazorKit SDK is already configured in this example. Here's how it's set up:
 ```typescript
 // app/components/providers/LazorkitProviderWrapper.tsx
 import { LazorkitProvider } from '@lazorkit/wallet';
+import { useMemo } from 'react';
 import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
 import type { PartialLazorkitProviderConfig } from '../../lib/types/lazorkit';
+
+const paymasterConfig = useMemo(
+  () => ({ paymasterUrl: PAYMASTER_URL }),
+  []
+);
 
 const additionalProps: PartialLazorkitProviderConfig = {
   isDebug: true,
@@ -103,16 +110,14 @@ const additionalProps: PartialLazorkitProviderConfig = {
 <LazorkitProvider
   rpcUrl={RPC_URL}
   portalUrl={PORTAL_URL}
-  paymasterConfig={{ paymasterUrl: PAYMASTER_URL }}
+  paymasterConfig={paymasterConfig}
   {...(additionalProps as PartialLazorkitProviderConfig)}
 >
   {children}
 </LazorkitProvider>
 ```
 
-**Note**: URLs are centralized in `app/lib/constants/urls.ts` for easier maintenance. Type definitions are available in `app/lib/types/lazorkit.ts` for proper TypeScript support.
-
-See [Integration Guide](./docs/guides/integration-guide.md) for detailed setup instructions.
+**Note**: URLs are centralized in `app/lib/constants/urls.ts` for easier maintenance. Type definitions are available in `app/lib/types/lazorkit.ts` for proper TypeScript support. The `paymasterConfig` is memoized to prevent object recreation on each render.
 
 ---
 
@@ -154,18 +159,11 @@ passkey-lazorkit-demo/
 │   ├── wallet/page.tsx                  # Wallet management page
 │   └── subscription/page.tsx            # Subscription page
 ├── docs/
-│   ├── README.md                        # Documentation index
-│   ├── tutorials/                       # Step-by-step tutorials
-│   │   ├── tutorial-1-passkey-wallet.md      # Passkey authentication
-│   │   ├── tutorial-2-transactions.md         # Sending transactions
-│   │   ├── tutorial-3-session-persistence.md  # Session management
-│   │   └── tutorial-4-subscription-billing.md # Subscription system
-│   ├── guides/                          # Integration guides
-│   │   ├── integration-guide.md         # Complete setup guide
-│   │   └── rpc-configuration.md        # RPC setup guide
-│   └── technical/                       # Technical documentation
-│       ├── CODE_EXPLANATION.md         # Code walkthrough
-│       └── TECHNICAL_EXPLANATION.md     # Technical deep dive
+│   └── tutorials/                       # Step-by-step tutorials
+│       ├── tutorial-1-passkey-wallet.md      # Passkey authentication
+│       ├── tutorial-2-transactions.md         # Sending transactions
+│       ├── tutorial-3-session-persistence.md  # Session management
+│       └── tutorial-4-subscription-billing.md # Subscription system
 └── README.md                            # This file
 ```
 
@@ -176,71 +174,66 @@ passkey-lazorkit-demo/
 - `app/lib/hooks/useTransactionSigning.ts` - Transaction signing with retry logic
 - `app/page.tsx` - Dashboard with connection example
 
-**See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for complete folder organization.**
-
 ---
 
 ## 📚 Step-by-Step Tutorials
 
-**Learn how to integrate LazorKit SDK with these practical tutorials:**
+**Ready to build?** Follow these tutorials to master LazorKit integration. Each tutorial builds on the previous one, so we recommend following them in order.
 
-### Essential Tutorials (Start Here)
+### 🎯 Start Here (Essential)
 
 1. **[Tutorial 1: Passkey Wallet Setup](./docs/tutorials/tutorial-1-passkey-wallet.md)**
-   - How to create a passkey-based wallet
-   - WebAuthn authentication flow
-   - Connecting to LazorKit smart wallet
+   - Create your first passkey-based wallet
+   - Understand WebAuthn authentication flow
+   - Connect to LazorKit smart wallet in minutes
 
 2. **[Tutorial 2: Sending Transactions](./docs/tutorials/tutorial-2-transactions.md)**
-   - How to trigger transactions with passkey signing
-   - Using `signAndSendTransaction` method
-   - Handling transaction errors
+   - Send SOL with just a biometric approval
+   - Master the `signAndSendTransaction` method
+   - Handle errors like a pro
 
-### Advanced Tutorials
+### 🚀 Level Up (Advanced)
 
 3. **[Tutorial 3: Session Persistence](./docs/tutorials/tutorial-3-session-persistence.md)**
-   - How to persist session across devices
-   - Managing wallet state
-   - Session management best practices
+   - Keep users logged in across devices
+   - Manage wallet state like a pro
+   - Learn session management best practices
 
 4. **[Tutorial 4: Subscription Billing](./docs/tutorials/tutorial-4-subscription-billing.md)**
-   - Subscription service with automated billing
-   - Smart wallet recurring payments
-   - Payment history tracking
-
-### Additional Guides
-
-- **[Integration Guide](./docs/guides/integration-guide.md)** - Complete setup from scratch
-- **[RPC Configuration](./docs/guides/rpc-configuration.md)** - RPC endpoint setup
-- **[Code Explanation](./docs/technical/CODE_EXPLANATION.md)** - Detailed code walkthrough
-- **[Technical Explanation](./docs/technical/TECHNICAL_EXPLANATION.md)** - How LazorKit works under the hood
-
-See the [Documentation Index](./docs/README.md) for a complete overview.
+   - Build Netflix-style subscriptions on Solana
+   - Implement recurring payments with smart wallets
+   - Track payment history
 
 ---
 
 ## 🎯 LazorKit SDK Integration
 
-### Core SDK Usage
-
-This example demonstrates the essential LazorKit SDK patterns:
+**Quick Reference:** Here are the essential patterns you'll use in your app. For complete examples, check out the tutorials above.
 
 #### 1. Provider Setup
 
 ```typescript
 // app/components/providers/LazorkitProviderWrapper.tsx
 import { LazorkitProvider } from '@lazorkit/wallet';
+import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
+
+const paymasterConfig = useMemo(
+  () => ({ paymasterUrl: PAYMASTER_URL }),
+  []
+);
 
 <LazorkitProvider
-  rpcUrl="https://api.devnet.solana.com"
-  portalUrl="https://portal.lazor.sh"
-  paymasterConfig={{ paymasterUrl: "https://kora.devnet.lazorkit.com" }}
+  rpcUrl={RPC_URL}
+  portalUrl={PORTAL_URL}
+  paymasterConfig={paymasterConfig}
   isDebug={true}
   network="devnet"
 >
   {children}
 </LazorkitProvider>
 ```
+
+> **Note:** In the actual codebase, URLs are centralized in `app/lib/constants/urls.ts` and the provider uses `useMemo` for optimization. See `LazorkitProviderWrapper.tsx` for the complete implementation.
 
 #### 2. Passkey Authentication
 
@@ -273,23 +266,23 @@ const signature = await signAndSendTransaction({
 });
 ```
 
-### Key Features Demonstrated
+### What You Get
 
 - ✅ **Passkey Authentication** - No seed phrases, just biometric auth
 - ✅ **Smart Wallet** - Program Derived Address (PDA) managed by LazorKit
-- ✅ **Paymaster Integration** - Gasless transaction support
+- ✅ **Paymaster Integration** - Gasless transaction support (for supported types)
 - ✅ **Transaction Signing** - Automatic passkey signing for all transactions
-- ✅ **Session Management** - Persistent wallet sessions
+- ✅ **Session Management** - Persistent wallet sessions across page reloads
 
-For detailed examples, see the [tutorials](./docs/tutorials/) or check the code in `app/components/wallet/WalletPanelEnhanced.tsx`.
+> **💡 Pro Tip:** Check out `app/components/wallet/WalletPanelEnhanced.tsx` to see a complete production-ready implementation.
 
 ### 💰 Receiving USDC/SPL Tokens
 
-**Important:** Before you can receive SPL tokens from external wallets, you must first **initialize your token account**.
+**Quick Tip:** Before you can receive SPL tokens from external wallets, you must first **initialize your token account**. Here's how:
 
-#### Understanding Devnet USDC Tokens
+#### ⚠️ Important: Multiple USDC Tokens on Devnet
 
-There are **multiple USDC tokens on Devnet** - this is a common source of confusion:
+**Heads up!** There are multiple USDC tokens on Devnet, which can be confusing:
 
 | Token | Mint Address | Source |
 |-------|-------------|--------|
@@ -298,9 +291,9 @@ There are **multiple USDC tokens on Devnet** - this is a common source of confus
 
 This demo uses **USDC-Dev** by default, which is compatible with Phantom and most Devnet wallets.
 
-#### Why does Phantom show "Failed to generate a valid transaction"?
+#### Why Phantom Shows "Failed to generate a valid transaction"
 
-Solana requires an **Associated Token Account (ATA)** to exist before receiving SPL tokens. Your LazorKit smart wallet is a PDA (Program Derived Address), and external wallets cannot create the ATA for you.
+**The Issue:** Solana requires an **Associated Token Account (ATA)** to exist before receiving SPL tokens. Your LazorKit smart wallet is a PDA (Program Derived Address), and external wallets cannot create the ATA for you—you need to create it first.
 
 #### How to receive USDC:
 
@@ -313,17 +306,14 @@ Solana requires an **Associated Token Account (ATA)** to exist before receiving 
 
 > **💡 Tip:** Get Devnet SOL from the [Solana Faucet](https://faucet.solana.com) first if you need SOL for the rent cost.
 
-### ⚠️ Known Issue: Paymaster Transaction Size Error
+### ⚠️ Troubleshooting: Transaction Size Error
 
-If you encounter this error:
-
+**If you see this error:**
 ```
 Transaction too large: Transaction size exceeds Solana's 1232 byte limit
 ```
 
-**Automatic Recovery Available!**
-
-This demo includes **automatic error recovery** for transaction size errors. When this error occurs:
+**Don't panic!** This demo includes automatic error recovery. When this happens:
 
 1. **Automatic Recovery UI** will appear with a "Clear Cache & Retry" button
 2. Click the button to automatically:
@@ -365,27 +355,29 @@ After clearing cache and reconnecting, you should be able to send transactions o
 
 ---
 
-## 🧪 Testing
+## 🧪 Testing Your Integration
 
-### Test Passkey Authentication
+**Ready to test?** Here's a quick checklist to verify everything works:
 
-1. Start the dev server with HTTPS: `npm run dev:https`
-2. Open [https://localhost:3000](https://localhost:3000) in a supported browser
-3. Accept the security warning (self-signed certificate - safe for local dev)
+### ✅ Test Passkey Authentication
+
+1. Start the dev server: `npm run dev:https`
+2. Open [https://localhost:3000](https://localhost:3000) in your browser
+3. Accept the security warning (it's safe—just a self-signed cert for local dev)
 4. Click "Connect with Passkey"
 5. Authenticate with Face ID/Touch ID/Windows Hello
-6. Verify wallet address is displayed
+6. ✅ Verify your wallet address is displayed
 
-### Test Transactions
+### ✅ Test Transactions
 
-1. Connect your wallet (on HTTPS)
-2. Get Devnet SOL from [faucet](https://faucet.solana.com)
-3. Navigate to Wallet page
+1. Connect your wallet (make sure you're on HTTPS!)
+2. Get some Devnet SOL from the [faucet](https://faucet.solana.com)
+3. Navigate to the Wallet page
 4. Send SOL to any address
-5. Approve with passkey
-6. Verify transaction on [Explorer](https://explorer.solana.com/?cluster=devnet)
+5. Approve with your passkey
+6. ✅ Check your transaction on [Solana Explorer](https://explorer.solana.com/?cluster=devnet)
 
-> **Note:** Make sure you're using `https://localhost:3000`, not `http://localhost:3000`. Transactions require HTTPS.
+> **⚠️ Remember:** Always use `https://localhost:3000`, not `http://localhost:3000`. Transactions require HTTPS!
 
 ### Browser Compatibility
 
@@ -402,25 +394,37 @@ After clearing cache and reconnecting, you should be able to send transactions o
 
 **Why Render?** Simple setup, automatic HTTPS, free tier, auto-deploy from GitHub.
 
-1. Push your code to GitHub
-2. Go to [render.com](https://render.com) → New → Web Service
-3. Connect your GitHub repository
-4. Render auto-detects Next.js
-5. Settings:
-   - Build Command: `npm install && npm run build`
-   - Start Command: `npm start`
-6. Click "Create Web Service"
-7. HTTPS is automatic
+**Quick Steps:**
 
-**Your app will be live at:** `https://your-project.onrender.com`
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
 
-> **Note:** Render may take a few minutes for the first build. Subsequent deployments are faster.
+2. **Create Web Service on Render**
+   - Go to [render.com](https://render.com) and sign up/login with GitHub
+   - Click "New" → "Web Service"
+   - Connect your repository
+   - Render auto-detects Next.js, but verify these settings:
+     - **Name**: `passkey-lazorkit-demo` (or your choice)
+     - **Environment**: `Node`
+     - **Build Command**: `npm install && npm run build`
+     - **Start Command**: `npm start`
+   - Click "Create Web Service"
+
+3. **Wait for Build** (2-5 minutes for first build)
+   - Render automatically provides HTTPS
+   - Your app URL: `https://your-project.onrender.com`
+
+> **💡 Tip:** Subsequent deployments are faster. Render auto-deploys on every push to your main branch.
 
 ### Option 2: Deploy to Vercel
 
 **Why Vercel?** Built by Next.js creators - zero config, automatic HTTPS, free tier.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/lazorkit-starter)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/shrijitmore/passkey-lazorkit-demo)
 
 ```bash
 # Install Vercel CLI
@@ -449,7 +453,7 @@ gcloud run deploy lazorkit-demo --source . --platform managed --region us-centra
 
 **Using App Engine:** Create `app.yaml` and run `gcloud app deploy`
 
-**Note:** GCP requires more setup. See [Deployment Guide](./docs/guides/integration-guide.md#deployment) for details.
+**Note:** GCP requires more setup. See the deployment section above for basic instructions.
 
 ### Important: HTTPS Required for Transactions
 
@@ -476,17 +480,45 @@ Then open [https://localhost:3000](https://localhost:3000) in your browser.
 - **Transactions require HTTPS** - LazorKit's transaction signing pipeline needs secure context
 - Production deployments (Render, Vercel, Netlify) provide HTTPS automatically
 
-**See [Local HTTPS Setup Guide](./docs/guides/local-https-setup.md) for detailed instructions.**
+**Troubleshooting HTTPS:**
+- If port 3000 is in use: `npm run dev:https -- -p 3001` (then use `https://localhost:3001`)
+- Browser security warning is normal for self-signed certificates - click "Advanced" → "Proceed to localhost"
+- For production, all recommended platforms provide HTTPS automatically
 
 ---
 
 ## 🔧 Configuration
 
-### RPC Rate Limiting
+### RPC Configuration
 
-The demo uses Solana's public Devnet RPC which has strict rate limits. For production or heavy testing, use a private RPC provider.
+The demo uses Solana's **public Devnet RPC** (`https://api.devnet.solana.com`) by default, which works perfectly for development and demos. This is configured in `app/lib/constants/urls.ts`.
 
-See [RPC Configuration Guide](./docs/guides/rpc-configuration.md) for setup instructions.
+**For Production or Heavy Usage (Optional):**
+
+If you need higher rate limits or better performance, you can optionally use a private RPC provider:
+
+1. **Helius** - 100,000 requests/day free tier
+   - Sign up at [helius.dev](https://www.helius.dev/)
+   - Update `app/lib/constants/urls.ts`:
+   ```typescript
+   export const RPC_URL = 'https://devnet.helius-rpc.com/?api-key=YOUR_API_KEY';
+   ```
+
+2. **QuickNode** - 1M requests/month free tier
+   - Sign up at [quicknode.com](https://www.quicknode.com/)
+   - Update `app/lib/constants/urls.ts`:
+   ```typescript
+   export const RPC_URL = 'https://YOUR_ENDPOINT.solana-devnet.quiknode.pro/YOUR_KEY';
+   ```
+
+3. **Alchemy** - 300M compute units/month free tier
+   - Sign up at [alchemy.com](https://www.alchemy.com/)
+   - Update `app/lib/constants/urls.ts`:
+   ```typescript
+   export const RPC_URL = 'https://solana-devnet.g.alchemy.com/v2/YOUR_API_KEY';
+   ```
+
+**Note:** The public RPC is sufficient for this demo. Private providers are only needed if you hit rate limits or need production-grade performance.
 
 ### Environment Variables (Optional)
 
@@ -504,21 +536,21 @@ NEXT_PUBLIC_PAYMASTER_URL=https://kora.devnet.lazorkit.com
 
 This project is submitted for the **Superteam Earn - LazorKit Integration Bounty**.
 
-### Required Deliverables ✅
+### ✅ Required Deliverables
 
 - [x] **Working Example Repo** - Complete Next.js 16 (React 19) application with TypeScript
-- [x] **Clean Code Structure** - Documented in [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)
-- [x] **Well-Documented Code** - Technical comments & specialized [CODE_EXPLANATION.md](./docs/technical/CODE_EXPLANATION.md)
-- [x] **Quick-Start Guide** - See [Installation](#installation) and [Setup](#setup) guides
+- [x] **Clean Code Structure** - Well-organized folder structure with clear separation of concerns
+- [x] **Well-Documented Code** - Comprehensive comments explaining LazorKit integration
+- [x] **Quick-Start Guide** - Clear README with installation, configuration, and setup instructions
 - [x] **4 Step-by-Step Tutorials** - Located in [`docs/tutorials/`](./docs/tutorials/) (2x the requirement)
-- [x] **Live Demo Ready** - Comprehensive [Deployment Guide](./docs/guides/integration-guide.md#deployment) provided
+- [x] **Live Demo** - Deployed on Render at [https://passkey-lazorkit-demo.onrender.com](https://passkey-lazorkit-demo.onrender.com)
 
-### 🎯 Why this project wins the bounty:
+### 🎯 What Makes This Special
 
-1.  **Premium UX (320px Support)**: While most "mobile responsive" apps break on small screens, this repo enforces a strictly horizontal 3-column layout on viewports as small as 320px, proving that Passkey wallets can provide a "snug" and premium Web2-like experience.
-2.  **Advanced Technical Solutions**: Beyond basic integration, we implemented a custom `useTransactionSigning` hook that automatically detects and resolves WebAuthn credential inconsistencies—a critical real-world issue for Passkey adoption.
-3.  **Comprehensive Learning Path**: 4 deep-dive tutorials covering everything from basic setup to session persistence and automated subscription billing simulations.
-4.  **Developer-First Design**: Centralized RPC/URL constants, singleton connection patterns, and a modular tabbed architecture make this a perfect starter template for production apps.
+1. **📱 Premium Mobile UX** - Works flawlessly on 320px screens. Most "responsive" apps break here—this one doesn't.
+2. **🔧 Advanced Solutions** - Custom `useTransactionSigning` hook that automatically fixes WebAuthn credential issues (a real-world problem solved).
+3. **📚 Comprehensive Learning** - 4 detailed tutorials covering everything from basics to advanced subscription billing.
+4. **🚀 Production Ready** - Centralized constants, singleton patterns, and modular architecture—perfect starter template.
 
 ### Key LazorKit Features Demonstrated
 
@@ -603,25 +635,17 @@ const { signMessage } = useWallet();
 const signature = await signMessage("Hello, LazorKit!");
 ```
 
-**See the [tutorials](./docs/tutorials/) for complete examples with error handling and best practices.**
+> **💡 Want more?** Check out the [tutorials](./docs/tutorials/) for complete examples with error handling and best practices.
 
 ## 📖 Learn More
+
+**Ready to dive deeper?** Here are some helpful resources:
 
 - **[LazorKit Docs](https://docs.lazorkit.com)** - Official SDK documentation
 - **[LazorKit GitHub](https://github.com/lazor-kit/lazor-kit)** - Source code and examples
 - **[Solana Web3.js](https://docs.solana.com)** - Solana development guide
 - **[WebAuthn Guide](https://webauthn.guide)** - Understanding passkeys
-- **[Telegram Group](https://t.me/lazorkit)** - Community support
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! Feel free to:
-- Report bugs
-- Suggest features
-- Submit pull requests
-- Improve documentation
+- **[Telegram Group](https://t.me/lazorkit)** - Get help from the community
 
 ---
 
