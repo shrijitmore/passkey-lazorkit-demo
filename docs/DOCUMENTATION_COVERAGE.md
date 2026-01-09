@@ -38,8 +38,8 @@ This document provides a comprehensive overview of what's covered in the documen
 7. **QR Code Scanner** ✅
    - Implemented in: `app/components/ui/QRScanner.tsx`
    - Used in: `app/wallet/page.tsx` (Send tab)
-   - Library: `qr-scanner` (v1.4.2)
    - Features: Camera-based QR scanning, address validation, mobile responsive
+   - **Horizontal 3-Column Layout**: Guaranteed fit on 320px ultra-mobile screens (Premium UX)
 
 ### Custom Hooks
 
@@ -90,7 +90,12 @@ This document provides a comprehensive overview of what's covered in the documen
 3. **LoadingSpinner** ✅
    - Used in code examples throughout tutorials
 
-4. **TransactionStatus** ✅
+4. **Tabs Architecture** ✅
+   - `SendTab.tsx` - Sending SOL/Tokens + QR Scanner
+   - `ReceiveTab.tsx` - Receiving + USDC Initialization
+   - `VerifyTab.tsx` - Message Signing demonstration (Biometric Ownership)
+
+5. **TransactionStatus** ✅
    - Used in transaction examples
 
 ### Contexts

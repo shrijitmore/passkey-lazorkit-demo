@@ -98,27 +98,27 @@ export default function WalletPage() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="send" className="w-full">
-          <TabsList className="flex w-full overflow-x-auto sm:grid sm:grid-cols-3 mb-8 bg-muted/10 p-2 rounded-2xl backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] no-scrollbar">
+          <TabsList className="flex flex-row w-full h-auto mb-10 sm:mb-8 bg-muted/10 p-1 rounded-2xl backdrop-blur-2xl border border-white/20 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
             <TabsTrigger
               value="send"
-              className="group flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)] data-[state=active]:scale-[1.02] hover:bg-white/5"
+              className="group flex-1 flex flex-row items-center justify-center gap-1.5 sm:gap-3 py-2.5 sm:py-4 px-1 sm:px-6 rounded-xl transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_30px_rgba(var(--primary-rgb),0.7)] data-[state=active]:scale-[1.02] hover:bg-white/5"
             >
-              <Send className="h-4.5 w-4.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-data-[state=active]:scale-110" />
-              <span className="font-bold tracking-tight text-xs sm:text-sm uppercase">Send</span>
+              <Send className="h-4 w-4 sm:h-4.5 sm:w-4.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-data-[state=active]:scale-110" />
+              <span className="font-black tracking-tight text-[9px] sm:text-xs uppercase">Send</span>
             </TabsTrigger>
             <TabsTrigger
               value="receive"
-              className="group flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)] data-[state=active]:scale-[1.02] hover:bg-white/5"
+              className="group flex-1 flex flex-row items-center justify-center gap-1.5 sm:gap-3 py-2.5 sm:py-4 px-1 sm:px-6 rounded-xl transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_30px_rgba(var(--primary-rgb),0.7)] data-[state=active]:scale-[1.02] hover:bg-white/5"
             >
-              <Download className="h-4.5 w-4.5 transition-transform group-hover:translate-y-0.5 group-data-[state=active]:scale-110" />
-              <span className="font-bold tracking-tight text-xs sm:text-sm uppercase">Receive</span>
+              <Download className="h-4 w-4 sm:h-4.5 sm:w-4.5 transition-transform group-hover:translate-y-0.5 group-data-[state=active]:scale-110" />
+              <span className="font-black tracking-tight text-[9px] sm:text-xs uppercase">Receive</span>
             </TabsTrigger>
             <TabsTrigger
               value="verify"
-              className="group flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_25px_rgba(var(--primary-rgb),0.5)] data-[state=active]:scale-[1.02] hover:bg-white/5"
+              className="group flex-1 flex flex-row items-center justify-center gap-1.5 sm:gap-3 py-2.5 sm:py-4 px-1 sm:px-6 rounded-xl transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_0_30px_rgba(var(--primary-rgb),0.7)] data-[state=active]:scale-[1.02] hover:bg-white/5"
             >
-              <Shield className="h-4.5 w-4.5 transition-transform group-hover:scale-115 group-data-[state=active]:scale-110" />
-              <span className="font-bold tracking-tight text-xs sm:text-sm uppercase">Verify</span>
+              <Shield className="h-4 w-4 sm:h-4.5 sm:w-4.5 transition-transform group-hover:scale-115 group-data-[state=active]:scale-110" />
+              <span className="font-black tracking-tight text-[9px] sm:text-xs uppercase">Verify</span>
             </TabsTrigger>
           </TabsList>
 

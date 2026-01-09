@@ -272,9 +272,29 @@ const PAYMASTER_URL = process.env.NEXT_PUBLIC_PAYMASTER_URL!;
 
 ## Building the UI
 
-### Step 1: Create Wallet Component
+### Step 1: Create Wallet UI (app/wallet/page.tsx)
 
-Create `app/components/wallet/WalletPanelEnhanced.tsx` (or a simpler `WalletPanel.tsx`):
+For a production-ready experience, we use a **Modular Tab Architecture**. Instead of one giant wallet file, we split the logic into specialized sub-components:
+
+1. **SendTab.tsx**: 
+   - Handles SOL and Token transfers
+   - Integrates `useTransactionSigning` with automatic retry logic
+   - Features a built-in QR Scanner for addresses
+
+2. **ReceiveTab.tsx**:
+   - Displays wallet address and dynamic QR code
+   - Includes **USDC Initialization** logic to prevent the "Missing ATA" issue for external senders
+
+3. **VerifyTab.tsx**:
+   - Demonstrates **Message Signing**
+   - Allows users to sign/verify off-chain messages via passkey
+
+#### Premium UI Features
+
+- **Strictly Horizontal Mobile Layout**: A custom implementation that enforces a 3-column horizontal grid even on small (320px) screens.
+- **Glassmorphism**: Uses `backdrop-blur-2xl` and translucent borders for a high-end feel.
+
+### Step 2: Implementation Example (WalletPanelEnhanced.tsx)
 
 ```tsx
 'use client';
@@ -466,14 +486,42 @@ Before choosing a deployment platform, consider your needs:
 
 | Platform | Setup Time | Free Tier | HTTPS | Best For |
 |----------|-----------|-----------|-------|----------|
-| **Vercel** | 2 min | Yes | Auto | Next.js apps (recommended) |
+| **Render** | 5 min | Yes | Auto | Full-stack apps (recommended) |
+| **Vercel** | 2 min | Yes | Auto | Next.js apps |
 | **Netlify** | 3 min | Yes | Auto | Static sites |
-| **Render** | 5 min | Yes | Auto | Full-stack apps |
 | **GCP** | 10+ min | Yes | Manual | Enterprise, existing GCP users |
 
-**Recommendation:** For Next.js applications, **Vercel** is the fastest and easiest option with zero configuration. All platforms provide automatic HTTPS, which is required for transactions.
+**Recommendation:** **Render** is a great choice for Next.js applications with simple setup and reliable free tier. Vercel is also excellent if you prefer faster initial builds. All platforms provide automatic HTTPS, which is required for transactions.
 
-### Option 1: Deploy to Vercel (Recommended)
+### Option 1: Deploy to Render (Recommended)
+
+**Why Render?**
+- Simple setup with auto-detection
+- Automatic HTTPS (required for transactions)
+- Free tier available
+- Auto-deploy from GitHub
+- Great for Next.js applications
+
+1. **Push your code to GitHub**
+
+2. **Create Web Service**
+   - Go to [render.com](https://render.com)
+   - Sign up/Login with GitHub
+   - Click "New" → "Web Service"
+   - Connect your repository
+   - Render auto-detects Next.js
+   - Settings:
+     - Build Command: `npm install && npm run build`
+     - Start Command: `npm start`
+   - Click "Create Web Service"
+
+3. **Your app is live!**
+   - Render automatically provides HTTPS
+   - Your app URL: `https://your-project.onrender.com`
+
+> **Note:** Render may take a few minutes for the first build. Subsequent deployments are faster.
+
+### Option 2: Deploy to Vercel
 
 **Why Vercel?**
 - Built by Next.js creators - zero configuration needed
@@ -496,7 +544,21 @@ vercel
 3. Import your repository
 4. Click "Deploy" (automatic HTTPS included)
 
-### Option 2: Deploy to Google Cloud Platform (GCP)
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+```
+
+**Or use the Vercel Dashboard:**
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com)
+3. Import your repository
+4. Click "Deploy" (automatic HTTPS included)
+
+### Option 3: Deploy to Google Cloud Platform (GCP)
 
 **Prerequisites:**
 - Google Cloud account with billing enabled

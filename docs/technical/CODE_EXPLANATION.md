@@ -12,8 +12,12 @@ passkey-lazorkit-demo/
 │   │   │   ├── LazorkitProviderWrapper.tsx  # LazorKit provider setup
 │   │   │   └── Providers.tsx            # Combined providers wrapper
 │   │   ├── wallet/                      # Wallet-related components
-│   │   │   ├── WalletPanelEnhanced.tsx  # Main wallet UI component
-│   │   │   ├── TransferModal.tsx        # Transaction modal
+│   │   │   ├── tabs/                    # Sub-components for wallet tabs
+│   │   │   │   ├── SendTab.tsx          # Send funds tab
+│   │   │   │   ├── ReceiveTab.tsx       # Receive funds tab
+│   │   │   │   └── VerifyTab.tsx        # Verify ownership tab
+│   │   │   ├── WalletPanelEnhanced.tsx  # Enhanced wallet info panel
+│   │   │   ├── TransferModal.tsx        # Legacy transaction modal
 │   │   │   └── TransactionHistory.tsx   # Transaction history
 │   │   ├── subscription/                # Subscription-related components
 │   │   │   ├── SubscriptionDemo.tsx    # Subscription demo
@@ -115,7 +119,37 @@ import { RPC_URL, PORTAL_URL, PAYMASTER_URL } from '../../lib/constants/urls';
 
 **Reference**: [LazorkitProvider API](https://docs.lazorkit.com/react-sdk/provider)
 
-### 3. WalletPanelEnhanced.tsx
+### 3. Wallet Management (page.tsx & tabs/)
+
+**Location**: `app/wallet/page.tsx` and `app/components/wallet/tabs/`
+
+**Purpose**: A comprehensive wallet management interface with three main functional tabs.
+
+#### Modular Tab Architecture
+
+The wallet is organized into three distinct sub-components to ensure clean code and specialized logic:
+
+1. **SendTab.tsx**: 
+   - Handles SOL and Token transfers
+   - Integrates `useTransactionSigning` with automatic retry logic
+   - Real-time balance validation and error handling
+
+2. **ReceiveTab.tsx**:
+   - Displays wallet address and QR code
+   - **USDC Initialization**: Handles the common "ATA create" issue. Users can initialize their USDC account with one click to ensure they can receive USDC from external wallets.
+
+3. **VerifyTab.tsx**:
+   - Demonstrates **Message Signing** capabilities
+   - Users can sign a message via passkey and verify ownership off-chain
+   - Useful for authentication and secure session handshakes
+
+#### Premium UI Features
+
+- **Strictly Horizontal Mobile Layout**: A custom implementation that enforces a 3-column horizontal grid even on small (320px) screens, providing a premium "fitted" aesthetic.
+- **Glassmorphism & Depth**: Uses `backdrop-blur-2xl`, translucent borders, and primary glows for a modern, high-end feel.
+- **Micro-interactions**: Subtle hover state transitions and active state scaling.
+
+### 4. WalletPanelEnhanced.tsx
 
 **Location**: `app/components/wallet/WalletPanelEnhanced.tsx`
 

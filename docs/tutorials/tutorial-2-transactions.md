@@ -143,9 +143,18 @@ const signature = await signTransaction({
 - Token transfers: May be sponsored by paymaster
 - Automatic retry logic handles credential refresh and transient errors
 
-## Step 3: Create a Simple Transfer Transaction
+## Step 3: Real-World Example: SendTab.tsx
 
-Based on the [official example](https://docs.lazorkit.com/react-sdk/getting-started#4-sending-transactions), here's how to send a transfer:
+While you can build a simple transfer button, a production-ready application needs a more comprehensive interface. In this repository, we've implemented the **`SendTab.tsx`** component (`app/components/wallet/tabs/SendTab.tsx`) which serves as our main transaction UI.
+
+### Key Features of `SendTab.tsx`:
+
+- **Token Selector**: Seamlessly switch between Native SOL and SPL Tokens (like USDC).
+- **QR Scanner**: Scan recipient addresses using the device camera.
+- **Balance Validation**: Real-time checking to prevent transactions that exceed available funds.
+- **Robust Error Handling**: Uses `parseError` to provide human-readable feedback for common Solana and WebAuthn errors.
+
+Here's a simplified version of how the transfer logic is implemented:
 
 ```typescript
 // app/components/TransferButton.tsx
